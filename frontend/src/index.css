@@ -1,0 +1,39 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: #09090E; /* Deep dark indigo/black */
+  --color-accent: #00E5FF; /* Electric Cyan */
+  --color-text: #F8F9FA;
+  --color-card: #13131D; /* Slightly lighter deep indigo for cards */
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-text);
+  font-family: 'Inter', sans-serif;
+  overflow-x: hidden;
+}
+
+/* Premium Aesthetics */
+.glass {
+  background: rgba(19, 19, 29, 0.6);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(0, 229, 255, 0.08); /* Subtle cyan border */
+}
+
+.glow-accent {
+  box-shadow: 0 0 20px rgba(0, 229, 255, 0.4);
+}
+
+.glow-accent-hover:hover {
+  box-shadow: 0 0 30px rgba(0, 229, 255, 0.7);
+  transform: translateY(-2px);
+  transition: all 0.3s ease;
+}
+
+.text-gradient {
+  background: linear-gradient(90deg, #FFFFFF 0%, #00E5FF 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
