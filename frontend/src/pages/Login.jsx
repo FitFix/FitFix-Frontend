@@ -1,15 +1,19 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Activity } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleLogin = (e) => {
     e.preventDefault();
-    // Navigate to dashboard after login
-    navigate('/dashboard');
+    localStorage.setItem('token', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.mockTokenForFitFix');
+    localStorage.removeItem('isAuthenticated'); // clean up old state
+    
+    const destination = location.state?.from?.pathname || '/dashboard';
+    navigate(destination, { replace: true });
   };
 
   return (

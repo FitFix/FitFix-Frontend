@@ -1,0 +1,140 @@
+.pricing-section {
+  padding: 100px 24px;
+}
+
+.pricing-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 60px;
+}
+
+.pricing-title {
+  font-size: 56px;
+  line-height: 1;
+  letter-spacing: -1.5px;
+}
+
+.pricing-desc {
+  font-size: 16px;
+  color: var(--text-muted);
+  line-height: 1.6;
+  text-align: right;
+}
+
+.pricing-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  align-items: flex-end;
+}
+
+.pricing-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  padding: 40px 32px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.pricing-card.highlighted {
+  border: 1px solid var(--accent-color);
+  padding-top: 56px;
+}
+
+.most-chosen {
+  position: absolute;
+  top: 0;
+  left: 0;
+  background: var(--accent-color);
+  color: #0b0c10;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  padding: 6px 16px;
+}
+
+.tier-name {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+.pricing-card h3 {
+  font-size: 32px;
+  margin-bottom: 16px;
+}
+
+.tier-price {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.price {
+  font-size: 48px;
+  font-weight: 800;
+  letter-spacing: -1px;
+}
+
+.period {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: var(--text-muted);
+}
+
+.tier-desc {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin-bottom: 32px;
+  padding-bottom: 32px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.card-features {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 40px;
+  flex: 1;
+}
+
+.feature-line {
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.text-accent {
+  color: var(--accent-color);
+}
+
+.pricing-card .btn-outline,
+.pricing-card .btn-primary {
+  width: 100%;
+  text-align: center;
+  display: block;
+  text-decoration: none;
+}
+
+@media (max-width: 992px) {
+  .pricing-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 24px;
+  }
+  
+  .pricing-desc {
+    text-align: left;
+  }
+  
+  .pricing-cards {
+    grid-template-columns: 1fr;
+  }
+}
