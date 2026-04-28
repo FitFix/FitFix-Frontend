@@ -15,6 +15,11 @@ import BlogsPage from './pages/BlogsPage';
 import SupportPage from './pages/SupportPage';
 import PrivacyPage from './pages/PrivacyPage';
 import TermsPage from './pages/TermsPage';
+import DocumentationPage from './pages/DocumentationPage';
+import ApiReferencePage from './pages/ApiReferencePage';
+import StatusPage from './pages/StatusPage';
+import AboutPage from './pages/AboutPage';
+import CareersPage from './pages/CareersPage';
 
 const AppContent = () => {
   const location = useLocation();
@@ -34,6 +39,11 @@ const AppContent = () => {
           <Route path="/support" element={<SupportPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/terms" element={<TermsPage />} />
+          <Route path="/docs" element={<DocumentationPage />} />
+          <Route path="/api" element={<ApiReferencePage />} />
+          <Route path="/status" element={<StatusPage />} />
+          <Route path="/about" element={<AboutPage />} />
+          <Route path="/careers" element={<CareersPage />} />
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/exercises" element={<ProtectedRoute><ExerciseSelector /></ProtectedRoute>} />
           <Route path="/workout/:exerciseId" element={<ProtectedRoute><AIVisionContainer /></ProtectedRoute>} />

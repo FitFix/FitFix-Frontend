@@ -1,10 +1,9 @@
-import React, { useContext } from 'react';
+import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ThemeContext } from '../../context/ThemeContext';
+import logo from '../../assets/finallogo.png';
 import './Navbar.css';
 
 const Navbar = () => {
-  const { theme, toggleTheme } = useContext(ThemeContext);
   const navigate = useNavigate();
   const isAuthenticated = !!localStorage.getItem('token');
 
@@ -15,11 +14,11 @@ const Navbar = () => {
 
   return (
     <nav className="navbar container">
-      <Link to="/" className="nav-brand" style={{ textDecoration: 'none', color: 'inherit' }}>
-        <span className="brand-icon">⚡</span>
-        <div className="brand-text">
-          <span className="brand-name">FitFix</span>
-          <span className="brand-sub">POSE INTELLIGENCE</span>
+      <Link to="/" className="nav-brand" style={{ textDecoration: 'none', color: 'inherit', display: 'flex', alignItems: 'center', gap: '14px' }}>
+        <img src={logo} alt="FitFix" style={{ height: '60px', width: 'auto', objectFit: 'contain' }} />
+        <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1 }}>
+          <span style={{ fontSize: '22px', fontWeight: 900, color: '#00E5FF', fontFamily: 'Google Sans, Outfit, sans-serif', letterSpacing: '-0.02em' }}>FitFix</span>
+          <span style={{ fontSize: '7px', fontWeight: 800, letterSpacing: '3px', color: '#8892b0', textTransform: 'uppercase', marginTop: '3px' }}>Pose Intelligence</span>
         </div>
       </Link>
       
@@ -32,9 +31,6 @@ const Navbar = () => {
       </div>
       
       <div className="nav-actions">
-        <button className="theme-toggle" onClick={toggleTheme}>
-          {theme === 'dark' ? '☀️' : '🌙'}
-        </button>
         {isAuthenticated ? (
           <button onClick={handleLogout} className="btn-outline" style={{ padding: '8px 16px', marginLeft: '16px' }}>LOGOUT</button>
         ) : (

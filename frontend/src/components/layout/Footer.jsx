@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import logo from '../../assets/finallogo.png';
 
 const footerColumns = [
   {
@@ -14,17 +15,17 @@ const footerColumns = [
   {
     title: 'Resources',
     links: [
-      { name: 'Documentation', path: '#' },
+      { name: 'Documentation', path: '/docs' },
       { name: 'Support', path: '/support' },
-      { name: 'API Reference', path: '#' },
-      { name: 'Status', path: '#' }
+      { name: 'API Reference', path: '/api' },
+      { name: 'Status', path: '/status' }
     ]
   },
   {
     title: 'Company',
     links: [
-      { name: 'About', path: '#' },
-      { name: 'Careers', path: '#' },
+      { name: 'About', path: '/about' },
+      { name: 'Careers', path: '/careers' },
       { name: 'Privacy Policy', path: '/privacy' },
       { name: 'Terms of Service', path: '/terms' }
     ]
@@ -122,11 +123,15 @@ const Footer = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
           <div className="flex flex-col gap-5">
-            <div className="flex items-center gap-2">
-              <span className="text-2xl">⚡</span>
-              <div className="flex flex-col">
-                <span className="text-xl font-black leading-none font-sans text-white">FitFix</span>
-                <span className="text-[8px] font-extrabold tracking-[2px] text-gray-500 uppercase">Pose Intelligence</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+              <img
+                src={logo}
+                alt="FitFix"
+                style={{ height: '60px', width: 'auto', objectFit: 'contain', opacity: 0.8 }}
+              />
+              <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1 }}>
+                <span style={{ fontSize: '22px', fontWeight: 900, color: '#00E5FF', fontFamily: 'Google Sans, Outfit, sans-serif', letterSpacing: '-0.02em' }}>FitFix</span>
+                <span style={{ fontSize: '7px', fontWeight: 800, letterSpacing: '3px', color: '#8892b0', textTransform: 'uppercase', marginTop: '3px' }}>Pose Intelligence</span>
               </div>
             </div>
             <p className="text-gray-400 text-sm font-sans leading-relaxed">
