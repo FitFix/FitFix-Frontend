@@ -19,27 +19,6 @@ export default function Login() {
       const email = e.target[0].value.trim();
       const password = e.target[1].value;
 
-      // Hardcoded bypasses for testing without backend
-      const mockMembers = JSON.parse(localStorage.getItem('mockMembers')) || [];
-      const foundUser = mockMembers.find(m => m.email === email);
-      
-      if (foundUser) {
-        if (foundUser.subscriptionExpiry && new Date(foundUser.subscriptionExpiry) < new Date()) {
-          setError('Access Denied: Subscription Expired.');
-          return;
-        }
-        localStorage.setItem('token', 'mock-token');
-        localStorage.setItem('user', JSON.stringify({ ...foundUser, role: 'user' }));
-        navigate('/dashboard');
-        return;
-      } else if (email === 'user@fitfix.com') {
-        localStorage.setItem('token', 'mock-token');
-        localStorage.setItem('user', JSON.stringify({ email: 'user@fitfix.com', name: 'Demo User', role: 'user', gymId: 'mock-gym-id' }));
-        navigate('/dashboard');
-        return;
-      }
-
-      // If not found in mock data, try actual backend
       const res = await fetch('http://localhost:5000/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -49,14 +28,42 @@ export default function Login() {
       const data = await res.json();
       
       if (!res.ok) {
-        throw new Error('API failed, falling back to mock');
+        throw new Error(data.error || 'API failed, falling back to mock');
       }
       
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data));
       navigate('/dashboard');
     } catch (err) {
-      setError('Access Denied: Email not registered or network error.');
+      const mockMembers = JSON.parse(localStorage.getItem('mockMembers')) || [];
+      const foundUser = mockMembers.find(m => m.email === e.target[0].value.trim());
+
+      if (foundUser) {
+        if (foundUser.subscriptionExpiry && new Date(foundUser.subscriptionExpiry) < new Date()) {
+          setError('Access Denied: Subscription Expired.');
+          return;
+        }
+        localStorage.setItem('token', 'mock-token');
+        localStorage.setItem('user', JSON.stringify({ ...foundUser, role: 'user' }));
+        navigate('/dashboard');
+        return;
+      }
+
+      if (e.target[0].value.trim() === 'user@fitfix.com' && e.target[1].value === 'password123') {
+        const fakeData = {
+          token: 'mock-token',
+          email: 'user@fitfix.com',
+          name: 'Demo User',
+          role: 'user',
+          gymId: 'mock-gym-id'
+        };
+        localStorage.setItem('token', fakeData.token);
+        localStorage.setItem('user', JSON.stringify(fakeData));
+        navigate('/dashboard');
+        return;
+      }
+
+      setError(err.message.includes('Subscription') ? err.message : 'Access Denied: Email not registered or network error.');
     }
   };
 

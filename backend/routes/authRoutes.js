@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Gym = require('../models/Gym');
+const Trainer = require('../models/Trainer');
 
 const createToken = (_id) => {
   return jwt.sign({ _id }, process.env.JWT_SECRET || 'your_super_secret_jwt_key_here', { expiresIn: '3d' });
@@ -27,16 +28,74 @@ router.post('/setup', async (req, res) => {
 
     let user = await User.findOne({ email: 'user@fitfix.com' });
     if (!user) {
+      const expiry = new Date();
+      expiry.setMonth(expiry.getMonth() + 3);
+
       user = await User.create({
         name: 'Demo User',
         email: 'user@fitfix.com',
+        phone: '555-0101',
         passwordHash: hash,
         gymId: gym._id,
-        role: 'user'
+        role: 'user',
+        subscriptionExpiry: expiry,
+        attendanceLog: [new Date()]
       });
     }
 
-    res.status(200).json({ message: 'Setup complete', gym, user });
+    let expiringUser = await User.findOne({ email: 'soon@example.com' });
+    if (!expiringUser) {
+      const expiry = new Date();
+      expiry.setDate(expiry.getDate() + 4);
+
+      expiringUser = await User.create({
+        name: 'Expiring Soon User',
+        email: 'soon@example.com',
+        phone: '555-0103',
+        passwordHash: hash,
+        gymId: gym._id,
+        role: 'user',
+        subscriptionExpiry: expiry
+      });
+    }
+
+    let expiredUser = await User.findOne({ email: 'expired@example.com' });
+    if (!expiredUser) {
+      const expiry = new Date();
+      expiry.setDate(expiry.getDate() - 5);
+
+      expiredUser = await User.create({
+        name: 'Expired Member',
+        email: 'expired@example.com',
+        phone: '555-0102',
+        passwordHash: hash,
+        gymId: gym._id,
+        role: 'user',
+        subscriptionExpiry: expiry
+      });
+    }
+
+    let trainer = await Trainer.findOne({ gymId: gym._id, phone: '555-0199' });
+    if (!trainer) {
+      trainer = await Trainer.create({
+        name: 'Arnold S.',
+        phone: '555-0199',
+        salary: 5000,
+        gymId: gym._id,
+        attendanceLog: [new Date()]
+      });
+    }
+
+    res.status(200).json({
+      message: 'Setup complete',
+      credentials: {
+        manager: { email: 'admin@fitfix.com', password: 'password123' },
+        member: { email: 'user@fitfix.com', password: 'password123' }
+      },
+      gym,
+      users: [user, expiringUser, expiredUser],
+      trainers: [trainer]
+    });
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
@@ -46,7 +105,11 @@ router.post('/login', async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    const user = await User.findOne({ email });
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
     if (!user) {
       return res.status(400).json({ error: 'Invalid login credentials' });
     }
@@ -64,7 +127,16 @@ router.post('/login', async (req, res) => {
     }
 
     const token = createToken(user._id);
-    res.status(200).json({ email, token, name: user.name, gymId: user.gymId, role: user.role });
+    res.status(200).json({
+      _id: user._id,
+      email: user.email,
+      token,
+      name: user.name,
+      phone: user.phone,
+      gymId: user.gymId,
+      role: user.role,
+      subscriptionExpiry: user.subscriptionExpiry
+    });
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
@@ -74,7 +146,11 @@ router.post('/manager-login', async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    const gym = await Gym.findOne({ adminEmail: email });
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
+    }
+
+    const gym = await Gym.findOne({ adminEmail: email.toLowerCase().trim() });
     if (!gym) {
       return res.status(400).json({ error: 'Invalid manager credentials' });
     }
@@ -85,7 +161,7 @@ router.post('/manager-login', async (req, res) => {
     }
 
     const token = createToken(gym._id);
-    res.status(200).json({ email, token, name: gym.name, gymId: gym._id, role: 'admin' });
+    res.status(200).json({ email: gym.adminEmail, token, name: gym.name, gymId: gym._id, role: 'admin' });
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
