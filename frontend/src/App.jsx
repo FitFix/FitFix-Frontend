@@ -6,6 +6,7 @@ import ExerciseSelector from './pages/ExerciseSelector';
 import AIVisionContainer from './pages/AIVisionContainer';
 import AdminGymPanel from './pages/AdminGymPanel';
 import Pricing from './pages/Pricing';
+import ManagerLogin from './pages/ManagerLogin';
 
 function App() {
   return (
@@ -13,6 +14,7 @@ function App() {
       <div className="min-h-screen bg-background text-text font-sans">
         <Routes>
           <Route path="/" element={<Login />} />
+          <Route path="/manager-login" element={<ManagerLogin />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/exercises" element={<ExerciseSelector />} />
           <Route path="/workout/:exerciseId" element={<AIVisionContainer />} />

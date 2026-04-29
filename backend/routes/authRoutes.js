@@ -56,8 +56,36 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'Invalid login credentials' });
     }
 
+    if (user.role === 'user') {
+      const now = new Date();
+      if (!user.subscriptionExpiry || user.subscriptionExpiry < now) {
+        return res.status(403).json({ error: 'Access Denied: Subscription Expired.' });
+      }
+    }
+
     const token = createToken(user._id);
     res.status(200).json({ email, token, name: user.name, gymId: user.gymId, role: user.role });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+router.post('/manager-login', async (req, res) => {
+  const { email, password } = req.body;
+
+  try {
+    const gym = await Gym.findOne({ adminEmail: email });
+    if (!gym) {
+      return res.status(400).json({ error: 'Invalid manager credentials' });
+    }
+
+    const match = await bcrypt.compare(password, gym.passwordHash);
+    if (!match) {
+      return res.status(400).json({ error: 'Invalid manager credentials' });
+    }
+
+    const token = createToken(gym._id);
+    res.status(200).json({ email, token, name: gym.name, gymId: gym._id, role: 'admin' });
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
