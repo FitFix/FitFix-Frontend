@@ -102,14 +102,65 @@ export default function AdminGymPanel() {
     }
   };
 
-  const handleSetCustomExpiry = (id, dateStr) => {
-    let mockMembers = JSON.parse(localStorage.getItem('mockMembers')) || [];
-    const index = mockMembers.findIndex(m => m._id === id);
-    if (index !== -1) {
-      mockMembers[index].subscriptionExpiry = new Date(dateStr).toISOString();
+  const handleSetCustomExpiry = async (id, dateStr) => {
+    try {
+      const res = await fetch(`http://localhost:5000/api/admin/members/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subscriptionExpiry: dateStr })
+      });
+      if (res.ok) {
+        fetchData();
+        setSelectedProfile(null);
+      } else {
+        throw new Error('API failed');
+      }
+    } catch (err) {
+      let mockMembers = JSON.parse(localStorage.getItem('mockMembers')) || [];
+      const index = mockMembers.findIndex(m => m._id === id);
+      if (index !== -1) {
+        mockMembers[index].subscriptionExpiry = new Date(dateStr).toISOString();
+        localStorage.setItem('mockMembers', JSON.stringify(mockMembers));
+        fetchData();
+        setSelectedProfile(null);
+      }
+    }
+  };
+
+  const handleAddNewMember = async (e) => {
+    e.preventDefault();
+    const name = e.target[0].value;
+    const email = e.target[1].value;
+    const phone = e.target[2].value;
+    const expiryDate = e.target[3].value;
+
+    try {
+      const res = await fetch(`http://localhost:5000/api/admin/members`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, phone, subscriptionExpiry: expiryDate, gymId })
+      });
+      if (res.ok) {
+        e.target.reset();
+        fetchData();
+        setShowAddMember(false);
+      } else {
+        throw new Error('API failed');
+      }
+    } catch (err) {
+      let mockMembers = JSON.parse(localStorage.getItem('mockMembers')) || [];
+      mockMembers.push({
+        _id: 'm' + Date.now(),
+        name,
+        email,
+        phone,
+        subscriptionExpiry: new Date(expiryDate).toISOString(),
+        attendanceLog: []
+      });
       localStorage.setItem('mockMembers', JSON.stringify(mockMembers));
       fetchData();
       setSelectedProfile(null);
+      setShowAddMember(false);
     }
   };
 
@@ -130,27 +181,6 @@ export default function AdminGymPanel() {
       localStorage.setItem('mockMembers', JSON.stringify(mockMembers));
       fetchData();
     }
-  };
-
-  const handleAddNewMember = (e) => {
-    e.preventDefault();
-    const name = e.target[0].value;
-    const email = e.target[1].value;
-    const phone = e.target[2].value;
-    const expiryDate = e.target[3].value;
-    
-    let mockMembers = JSON.parse(localStorage.getItem('mockMembers')) || [];
-    mockMembers.push({
-      _id: 'm' + Date.now(),
-      name,
-      email,
-      phone,
-      subscriptionExpiry: new Date(expiryDate).toISOString(),
-      attendanceLog: []
-    });
-    localStorage.setItem('mockMembers', JSON.stringify(mockMembers));
-    fetchData();
-    setShowAddMember(false);
   };
 
   // Trainer Handlers

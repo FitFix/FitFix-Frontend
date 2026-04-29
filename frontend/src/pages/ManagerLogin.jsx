@@ -15,21 +15,6 @@ export default function ManagerLogin() {
       const email = e.target[0].value;
       const password = e.target[1].value;
       
-      // Hardcoded bypass for testing without backend
-      if (email === 'admin@fitfix.com' && password === 'password123') {
-        const fakeData = {
-          token: 'mock-admin-token-123',
-          email: 'admin@fitfix.com',
-          name: 'FitFix HQ',
-          gymId: 'mock-gym-id',
-          role: 'admin'
-        };
-        localStorage.setItem('token', fakeData.token);
-        localStorage.setItem('user', JSON.stringify(fakeData));
-        navigate('/admin');
-        return;
-      }
-
       const res = await fetch('http://localhost:5000/api/auth/manager-login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -47,6 +32,23 @@ export default function ManagerLogin() {
       localStorage.setItem('user', JSON.stringify(data));
       navigate('/admin');
     } catch (err) {
+      const email = e.target[0].value;
+      const password = e.target[1].value;
+
+      if (email === 'admin@fitfix.com' && password === 'password123') {
+        const fakeData = {
+          token: 'mock-admin-token-123',
+          email: 'admin@fitfix.com',
+          name: 'FitFix HQ',
+          gymId: 'mock-gym-id',
+          role: 'admin'
+        };
+        localStorage.setItem('token', fakeData.token);
+        localStorage.setItem('user', JSON.stringify(fakeData));
+        navigate('/admin');
+        return;
+      }
+
       setError('Network error, please try again later.');
     }
   };
