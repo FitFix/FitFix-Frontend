@@ -5,8 +5,29 @@ require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const CLIENT_ORIGIN = process.env.FRONTEND_URL || '*';
 
-app.use(cors());
+// Create HTTP server and integrate Socket.io
+const http = require('http');
+const { Server } = require('socket.io');
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: CLIENT_ORIGIN,
+    methods: ['GET', 'POST']
+  }
+});
+
+app.set('io', io); // Make io accessible in route handlers
+
+io.on('connection', (socket) => {
+  console.log('A client connected:', socket.id);
+  socket.on('disconnect', () => {
+    console.log('Client disconnected:', socket.id);
+  });
+});
+
+app.use(cors({ origin: CLIENT_ORIGIN }));
 app.use(express.json());
 
 // Database connection
@@ -28,11 +49,14 @@ connectDB();
 
 // Routes
 app.use('/api/auth', require('./routes/authRoutes'));
+app.use('/api/admin', require('./routes/adminRoutes'));
+app.use('/api/ai', require('./routes/aiRoutes'));
+app.use('/api/workouts', require('./routes/workoutRoutes'));
 
 app.get('/', (req, res) => {
   res.send('FitFix API is running');
 });
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
