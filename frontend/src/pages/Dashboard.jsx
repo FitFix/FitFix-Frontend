@@ -34,14 +34,38 @@ const itemVariants = {
 export default function Dashboard() {
   const navigate = useNavigate();
 
+  const sessionElements = [];
+  for (let i = 1; i <= 3; i++) {
+    sessionElements.push(
+      <motion.div 
+        key={i} 
+        whileHover={{ scale: 1.02, backgroundColor: 'rgba(0,229,255,0.05)' }}
+        className="flex justify-between items-center p-4 bg-black/30 border border-white/5 rounded-2xl cursor-pointer transition-colors"
+      >
+        <div className="flex items-center gap-4">
+          <div className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center text-gray-400">
+            <Dumbbell size={18} />
+          </div>
+          <div>
+            <p className="font-bold text-lg">Bicep Curls</p>
+            <p className="text-sm text-gray-400">Today, 9:41 AM</p>
+          </div>
+        </div>
+        <div className="text-right">
+          <p className="font-bold text-accent text-lg">45 Reps</p>
+          <p className="text-sm text-gray-400">Avg 145° Depth</p>
+        </div>
+      </motion.div>
+    );
+  }
+
   return (
     <motion.div 
       variants={containerVariants}
       initial="hidden"
       animate="visible"
-      className="min-h-screen p-6 md:p-10 max-w-6xl mx-auto relative"
+      className="py-10 relative w-full"
     >
-      {/* Subtle background glow */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-96 bg-accent/5 rounded-full blur-[100px] pointer-events-none" />
 
       <motion.header variants={itemVariants} className="mb-10 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 relative z-10">
@@ -50,6 +74,15 @@ export default function Dashboard() {
           <p className="text-gray-400 mt-2">Welcome back, Athlete</p>
         </div>
         <div className="flex items-center gap-4 self-start sm:self-auto">
+          <button 
+            onClick={() => {
+              localStorage.removeItem('token');
+              navigate('/login');
+            }}
+            className="px-6 py-3 bg-transparent text-gray-400 hover:text-white transition-colors text-sm font-bold"
+          >
+            Logout
+          </button>
           <button 
             onClick={() => navigate('/pricing')} 
             className="px-6 py-3 bg-transparent text-white border border-gray-700 font-bold rounded-xl hover:bg-white/5 transition-colors"
@@ -111,27 +144,7 @@ export default function Dashboard() {
             <button className="text-sm text-accent hover:underline">View All</button>
           </div>
           <div className="space-y-4 flex-1">
-            {[1, 2, 3].map(i => (
-              <motion.div 
-                key={i} 
-                whileHover={{ scale: 1.02, backgroundColor: 'rgba(0,229,255,0.05)' }}
-                className="flex justify-between items-center p-4 bg-black/30 border border-white/5 rounded-2xl cursor-pointer transition-colors"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center text-gray-400">
-                    <Dumbbell size={18} />
-                  </div>
-                  <div>
-                    <p className="font-bold text-lg">Bicep Curls</p>
-                    <p className="text-sm text-gray-400">Today, 9:41 AM</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="font-bold text-accent text-lg">45 Reps</p>
-                  <p className="text-sm text-gray-400">Avg 145° Depth</p>
-                </div>
-              </motion.div>
-            ))}
+            {sessionElements}
           </div>
         </motion.div>
       </div>

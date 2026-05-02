@@ -1,17 +1,18 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Activity } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [error, setError] = React.useState('');
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
-    
+
     // Using default mock behavior for UI, but handle expiration if we integrated actual fetch
     // Mock simulation for now. In a real scenario, this would be an API call to /api/auth/login
     // Here we will do a real API call since the backend is updated.
@@ -24,13 +25,13 @@ export default function Login() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
       });
-      
+
       const data = await res.json();
-      
+
       if (!res.ok) {
         throw new Error(data.error || 'API failed, falling back to mock');
       }
-      
+
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data));
       navigate('/dashboard');
@@ -73,7 +74,7 @@ export default function Login() {
       <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-accent/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-1/4 right-1/4 w-[30rem] h-[30rem] bg-accent/5 rounded-full blur-3xl pointer-events-none" />
 
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
@@ -82,8 +83,8 @@ export default function Login() {
         <Activity size={48} className="text-accent" />
         <h1 className="text-4xl font-bold tracking-tight">FitFix<span className="text-accent text-glow">AI</span></h1>
       </motion.div>
-      
-      <motion.div 
+
+      <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ delay: 0.2, duration: 0.5 }}
@@ -99,8 +100,8 @@ export default function Login() {
           )}
           <div>
             <label className="block text-sm font-medium mb-2 text-gray-400">Email</label>
-            <input 
-              type="email" 
+            <input
+              type="email"
               className="w-full px-4 py-3 bg-black/40 border border-gray-700/50 rounded-xl focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all text-white placeholder-gray-500"
               placeholder="Enter your email"
               defaultValue="user@fitfix.com"
@@ -108,17 +109,17 @@ export default function Login() {
           </div>
           <div>
             <label className="block text-sm font-medium mb-2 text-gray-400">Password</label>
-            <input 
-              type="password" 
+            <input
+              type="password"
               className="w-full px-4 py-3 bg-black/40 border border-gray-700/50 rounded-xl focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all text-white placeholder-gray-500"
               placeholder="••••••••"
               defaultValue="password123"
             />
           </div>
-          <motion.button 
+          <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            type="submit" 
+            type="submit"
             className="w-full py-3 mt-6 bg-accent text-black font-bold rounded-xl glow-accent-hover transition-all"
           >
             Start Training

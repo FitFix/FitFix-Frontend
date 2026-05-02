@@ -1,0 +1,130 @@
+.vision-section {
+  padding: 100px 24px;
+}
+
+.vision-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 60px;
+}
+
+.vision-title-area {
+  flex: 1;
+}
+
+.vision-badge {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+}
+
+.vision-title {
+  font-size: 56px;
+  line-height: 1;
+  letter-spacing: -1.5px;
+}
+
+.vision-desc {
+  flex: 1;
+  max-width: 400px;
+  font-size: 16px;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.vision-content {
+  display: flex;
+  gap: 60px;
+  align-items: center;
+}
+
+.vision-demo-box {
+  flex: 1.5;
+  height: 450px;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  position: relative;
+  overflow: hidden;
+  background-image: linear-gradient(45deg, rgba(0, 240, 255, 0.05) 25%, transparent 25%, transparent 50%, rgba(0, 240, 255, 0.05) 50%, rgba(0, 240, 255, 0.05) 75%, transparent 75%, transparent);
+  background-size: 40px 40px;
+}
+
+.demo-tag {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  border: 1px solid var(--accent-color);
+  color: var(--accent-color);
+  padding: 4px 12px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  background: rgba(11, 12, 16, 0.8);
+  z-index: 10;
+}
+
+.demo-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle at center, transparent 0%, var(--bg-color) 100%);
+  opacity: 0.8;
+}
+
+.vision-features {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+}
+
+.feature-item {
+  display: flex;
+  gap: 20px;
+}
+
+.feature-icon {
+  width: 48px;
+  height: 48px;
+  border: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-color);
+  background: var(--card-bg);
+  flex-shrink: 0;
+}
+
+.feature-text h3 {
+  font-size: 16px;
+  margin-bottom: 8px;
+  letter-spacing: 0.5px;
+}
+
+.feature-text p {
+  font-size: 14px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin: 0;
+}
+
+@media (max-width: 992px) {
+  .vision-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 32px;
+  }
+  
+  .vision-content {
+    flex-direction: column;
+  }
+  
+  .vision-demo-box {
+    width: 100%;
+  }
+}
