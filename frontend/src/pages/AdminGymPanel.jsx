@@ -17,13 +17,21 @@ export default function AdminGymPanel() {
   const fetchData = async () => {
     try {
       const userStr = localStorage.getItem('user');
-      if (!userStr) return;
+      const token = localStorage.getItem('token');
+      if (!userStr || !token) {
+        window.location.href = '/manager-login';
+        return;
+      }
       const user = JSON.parse(userStr);
       setGymId(user.gymId);
 
       const [membersRes, trainersRes] = await Promise.all([
-        fetch(`http://localhost:5000/api/admin/members?gymId=${user.gymId}`),
-        fetch(`http://localhost:5000/api/admin/trainers?gymId=${user.gymId}`)
+        fetch(`http://localhost:5000/api/admin/members`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        fetch(`http://localhost:5000/api/admin/trainers`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
       ]);
 
       if (membersRes.ok) {
@@ -37,24 +45,7 @@ export default function AdminGymPanel() {
         throw new Error('Backend trainers fetch failed');
       }
     } catch (err) {
-      console.warn('Backend unavailable, falling back to mock data for testing.', err);
-      let mockMembers = JSON.parse(localStorage.getItem('mockMembers'));
-      if (!mockMembers) {
-        mockMembers = [
-          { _id: 'm1', name: 'John Doe', email: 'john@example.com', phone: '555-0101', subscriptionExpiry: new Date(Date.now() + 864000000 * 3).toISOString(), attendanceLog: [new Date().toISOString()] },
-          { _id: 'm2', name: 'Jane Smith', email: 'jane@example.com', phone: '555-0102', subscriptionExpiry: new Date(Date.now() - 864000000).toISOString(), attendanceLog: [] },
-          { _id: 'm3', name: 'Expiring Soon User', email: 'soon@example.com', phone: '555-0103', subscriptionExpiry: new Date(Date.now() + 86400000 * 4).toISOString(), attendanceLog: [] }
-        ];
-        localStorage.setItem('mockMembers', JSON.stringify(mockMembers));
-      }
-      setMembers(mockMembers);
-      
-      let mockTrainers = JSON.parse(localStorage.getItem('mockTrainers'));
-      if (!mockTrainers) {
-        mockTrainers = [{ _id: 't1', name: 'Arnold S.', phone: '555-0199', salary: 5000, attendanceLog: [new Date().toISOString()] }];
-        localStorage.setItem('mockTrainers', JSON.stringify(mockTrainers));
-      }
-      setTrainers(mockTrainers);
+      console.error('Error fetching data:', err);
     }
   };
 
@@ -74,9 +65,13 @@ export default function AdminGymPanel() {
 
   const handleExtendSubscription = async (id, months) => {
     try {
+      const token = localStorage.getItem('token');
       const res = await fetch(`http://localhost:5000/api/admin/members/${id}/extend`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ months })
       });
       if (res.ok) {
@@ -86,27 +81,19 @@ export default function AdminGymPanel() {
         throw new Error('API failed');
       }
     } catch (err) {
-      // Mock update
-      let mockMembers = JSON.parse(localStorage.getItem('mockMembers')) || [];
-      const index = mockMembers.findIndex(m => m._id === id);
-      if (index !== -1) {
-        let currentExpiry = mockMembers[index].subscriptionExpiry && new Date(mockMembers[index].subscriptionExpiry) > new Date() 
-          ? new Date(mockMembers[index].subscriptionExpiry) 
-          : new Date();
-        currentExpiry.setMonth(currentExpiry.getMonth() + parseInt(months));
-        mockMembers[index].subscriptionExpiry = currentExpiry.toISOString();
-        localStorage.setItem('mockMembers', JSON.stringify(mockMembers));
-        fetchData();
-        setSelectedProfile(null);
-      }
+      console.error(err);
     }
   };
 
   const handleSetCustomExpiry = async (id, dateStr) => {
     try {
+      const token = localStorage.getItem('token');
       const res = await fetch(`http://localhost:5000/api/admin/members/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ subscriptionExpiry: dateStr })
       });
       if (res.ok) {
@@ -116,14 +103,7 @@ export default function AdminGymPanel() {
         throw new Error('API failed');
       }
     } catch (err) {
-      let mockMembers = JSON.parse(localStorage.getItem('mockMembers')) || [];
-      const index = mockMembers.findIndex(m => m._id === id);
-      if (index !== -1) {
-        mockMembers[index].subscriptionExpiry = new Date(dateStr).toISOString();
-        localStorage.setItem('mockMembers', JSON.stringify(mockMembers));
-        fetchData();
-        setSelectedProfile(null);
-      }
+      console.error(err);
     }
   };
 
@@ -135,10 +115,14 @@ export default function AdminGymPanel() {
     const expiryDate = e.target[3].value;
 
     try {
+      const token = localStorage.getItem('token');
       const res = await fetch(`http://localhost:5000/api/admin/members`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, phone, subscriptionExpiry: expiryDate, gymId })
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ name, email, phone, subscriptionExpiry: expiryDate })
       });
       if (res.ok) {
         e.target.reset();
@@ -148,27 +132,17 @@ export default function AdminGymPanel() {
         throw new Error('API failed');
       }
     } catch (err) {
-      let mockMembers = JSON.parse(localStorage.getItem('mockMembers')) || [];
-      mockMembers.push({
-        _id: 'm' + Date.now(),
-        name,
-        email,
-        phone,
-        subscriptionExpiry: new Date(expiryDate).toISOString(),
-        attendanceLog: []
-      });
-      localStorage.setItem('mockMembers', JSON.stringify(mockMembers));
-      fetchData();
-      setSelectedProfile(null);
-      setShowAddMember(false);
+      console.error(err);
     }
   };
 
   const handleDeleteMember = async (id) => {
     if (!window.confirm('Are you sure you want to delete this member?')) return;
     try {
+      const token = localStorage.getItem('token');
       const res = await fetch(`http://localhost:5000/api/admin/members/${id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
         fetchData();
@@ -176,10 +150,7 @@ export default function AdminGymPanel() {
         throw new Error('API failed');
       }
     } catch (err) {
-      let mockMembers = JSON.parse(localStorage.getItem('mockMembers')) || [];
-      mockMembers = mockMembers.filter(m => m._id !== id);
-      localStorage.setItem('mockMembers', JSON.stringify(mockMembers));
-      fetchData();
+      console.error(err);
     }
   };
 
@@ -190,10 +161,14 @@ export default function AdminGymPanel() {
     const phone = e.target[1].value;
     const salary = e.target[2].value;
     try {
+      const token = localStorage.getItem('token');
       const res = await fetch(`http://localhost:5000/api/admin/trainers`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, phone, salary, gymId })
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ name, phone, salary })
       });
       if (res.ok) {
         e.target.reset();
@@ -202,24 +177,16 @@ export default function AdminGymPanel() {
         throw new Error('API failed');
       }
     } catch (err) {
-      let mockTrainers = JSON.parse(localStorage.getItem('mockTrainers')) || [];
-      mockTrainers.push({
-        _id: 't' + Date.now(),
-        name,
-        phone,
-        salary: Number(salary),
-        attendanceLog: []
-      });
-      localStorage.setItem('mockTrainers', JSON.stringify(mockTrainers));
-      fetchData();
-      e.target.reset();
+      console.error(err);
     }
   };
 
   const handleDeleteTrainer = async (id) => {
     try {
+      const token = localStorage.getItem('token');
       const res = await fetch(`http://localhost:5000/api/admin/trainers/${id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
         fetchData();
@@ -227,10 +194,7 @@ export default function AdminGymPanel() {
         throw new Error('API failed');
       }
     } catch (err) {
-      let mockTrainers = JSON.parse(localStorage.getItem('mockTrainers')) || [];
-      mockTrainers = mockTrainers.filter(t => t._id !== id);
-      localStorage.setItem('mockTrainers', JSON.stringify(mockTrainers));
-      fetchData();
+      console.error(err);
     }
   };
 

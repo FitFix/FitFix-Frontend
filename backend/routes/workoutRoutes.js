@@ -5,19 +5,17 @@ const WorkoutSession = require('../models/WorkoutSession');
 const User = require('../models/User');
 
 const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
+const { requireAuth } = require('../middleware/authMiddleware');
+
+router.use(requireAuth);
 
 router.get('/sessions', async (req, res) => {
   try {
-    const { userId, gymId } = req.query;
     const filter = {};
-
-    if (userId) {
-      if (!isValidObjectId(userId)) return res.status(400).json({ error: 'Invalid userId' });
-      filter.userId = userId;
-    }
-
-    if (gymId) {
-      if (!isValidObjectId(gymId)) return res.status(400).json({ error: 'Invalid gymId' });
+    if (req.user.role === 'user') {
+      filter.userId = req.user._id;
+    } else {
+      const gymId = req.user.gymId;
       const gymUsers = await User.find({ gymId }).select('_id');
       filter.userId = { $in: gymUsers.map(user => user._id) };
     }
@@ -35,11 +33,11 @@ router.get('/sessions', async (req, res) => {
 
 router.post('/sessions', async (req, res) => {
   try {
-    const { userId, exerciseId, reps, maxDepthAngle, avgSpeed } = req.body;
-    if (!userId || !exerciseId) {
-      return res.status(400).json({ error: 'userId and exerciseId are required' });
+    const { exerciseId, reps, maxDepthAngle, avgSpeed } = req.body;
+    const userId = req.user._id;
+    if (!exerciseId) {
+      return res.status(400).json({ error: 'exerciseId is required' });
     }
-    if (!isValidObjectId(userId)) return res.status(400).json({ error: 'Invalid userId' });
 
     const session = await WorkoutSession.create({
       userId,
@@ -57,7 +55,10 @@ router.post('/sessions', async (req, res) => {
 
 router.get('/summary/:userId', async (req, res) => {
   try {
-    const { userId } = req.params;
+    const userId = req.params.userId === 'me' ? req.user._id : req.params.userId;
+    if (req.user.role === 'user' && req.user._id.toString() !== userId.toString()) {
+      return res.status(403).json({ error: 'Access denied: cannot view another user\'s summary' });
+    }
     if (!isValidObjectId(userId)) return res.status(400).json({ error: 'Invalid userId' });
 
     const sessions = await WorkoutSession.find({ userId }).sort({ date: -1 });

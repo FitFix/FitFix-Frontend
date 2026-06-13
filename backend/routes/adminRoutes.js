@@ -10,16 +10,14 @@ const DEFAULT_MEMBER_PASSWORD = process.env.DEFAULT_MEMBER_PASSWORD || 'password
 
 const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
 
-// Middleware to verify manager/admin (skip actual token verification for now to match simplicity of current auth)
-// In a real app, use auth middleware here
+const { requireAuth } = require('../middleware/authMiddleware');
+router.use(requireAuth);
 
 // Get all members for a gym
 router.get('/members', async (req, res) => {
   try {
-    const gymId = req.query.gymId;
-    if (!gymId) return res.status(400).json({ error: 'gymId required' });
-    
-    if (!isValidObjectId(gymId)) return res.status(400).json({ error: 'Invalid gymId' });
+    const gymId = req.user.gymId;
+    if (!gymId) return res.status(400).json({ error: 'gymId not associated with this user' });
 
     const members = await User.find({ gymId, role: 'user' }).sort({ createdAt: -1 });
     res.json(members);
@@ -31,11 +29,11 @@ router.get('/members', async (req, res) => {
 // Create member
 router.post('/members', async (req, res) => {
   try {
-    const { name, email, phone, gymId, password, subscriptionExpiry, faceEncoding } = req.body;
+    const { name, email, phone, password, subscriptionExpiry, faceEncoding } = req.body;
+    const gymId = req.user.gymId;
     if (!name || !email || !gymId) {
-      return res.status(400).json({ error: 'name, email and gymId are required' });
+      return res.status(400).json({ error: 'name and email are required' });
     }
-    if (!isValidObjectId(gymId)) return res.status(400).json({ error: 'Invalid gymId' });
 
     const existing = await User.findOne({ email: email.toLowerCase().trim() });
     if (existing) return res.status(409).json({ error: 'A member with this email already exists' });
@@ -126,9 +124,8 @@ router.delete('/members/:id', async (req, res) => {
 // Get all trainers for a gym
 router.get('/trainers', async (req, res) => {
   try {
-    const gymId = req.query.gymId;
-    if (!gymId) return res.status(400).json({ error: 'gymId required' });
-    if (!isValidObjectId(gymId)) return res.status(400).json({ error: 'Invalid gymId' });
+    const gymId = req.user.gymId;
+    if (!gymId) return res.status(400).json({ error: 'gymId not associated with this user' });
 
     const trainers = await Trainer.find({ gymId }).sort({ createdAt: -1 });
     res.json(trainers);
@@ -140,11 +137,11 @@ router.get('/trainers', async (req, res) => {
 // Create trainer
 router.post('/trainers', async (req, res) => {
   try {
-    const { name, phone, salary, gymId, faceEncoding } = req.body;
+    const { name, phone, salary, faceEncoding } = req.body;
+    const gymId = req.user.gymId;
     if (!name || !phone || !gymId) {
-      return res.status(400).json({ error: 'name, phone and gymId are required' });
+      return res.status(400).json({ error: 'name and phone are required' });
     }
-    if (!isValidObjectId(gymId)) return res.status(400).json({ error: 'Invalid gymId' });
 
     const trainer = await Trainer.create({
       name,
@@ -213,9 +210,8 @@ router.delete('/trainers/:id', async (req, res) => {
 // Get inventory
 router.get('/inventory', async (req, res) => {
   try {
-    const gymId = req.query.gymId;
-    if (!gymId) return res.status(400).json({ error: 'gymId required' });
-    if (!isValidObjectId(gymId)) return res.status(400).json({ error: 'Invalid gymId' });
+    const gymId = req.user.gymId;
+    if (!gymId) return res.status(400).json({ error: 'gymId not associated with this user' });
     
     const inventory = await Inventory.find({ gymId }).sort({ createdAt: -1 });
     res.json(inventory);
@@ -227,9 +223,9 @@ router.get('/inventory', async (req, res) => {
 // Create inventory
 router.post('/inventory', async (req, res) => {
   try {
-    const { name, quantity, gymId } = req.body;
-    if (!name || !gymId) return res.status(400).json({ error: 'name and gymId are required' });
-    if (!isValidObjectId(gymId)) return res.status(400).json({ error: 'Invalid gymId' });
+    const { name, quantity } = req.body;
+    const gymId = req.user.gymId;
+    if (!name || !gymId) return res.status(400).json({ error: 'name is required' });
 
     const item = await Inventory.create({ name, quantity: Number(quantity) || 0, gymId });
     res.status(201).json(item);

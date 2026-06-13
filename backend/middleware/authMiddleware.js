@@ -13,7 +13,22 @@ const requireAuth = async (req, res, next) => {
 
   try {
     const { _id } = jwt.verify(token, process.env.JWT_SECRET || 'your_super_secret_jwt_key_here');
-    req.user = await User.findOne({ _id }).select('_id gymId role');
+    
+    // Check if it is a standard user/member
+    let user = await User.findOne({ _id }).select('_id gymId role');
+    if (!user) {
+      // If not a user, check if it is a gym manager (where _id is the gym ID)
+      const gym = await Gym.findById(_id);
+      if (gym) {
+        user = { _id: gym._id, gymId: gym._id, role: 'admin' };
+      }
+    }
+    
+    if (!user) {
+      return res.status(401).json({ error: 'Request is not authorized' });
+    }
+    
+    req.user = user;
     next();
   } catch (error) {
     console.error(error);

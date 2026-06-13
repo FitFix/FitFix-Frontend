@@ -23,3 +23,7 @@ Thumbs.db
 # IDEs
 .vscode/
 .idea/
+
+# Models
+*.pt
+*.onnx

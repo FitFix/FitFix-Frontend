@@ -32,23 +32,6 @@ export default function ManagerLogin() {
       localStorage.setItem('user', JSON.stringify(data));
       navigate('/admin');
     } catch (err) {
-      const email = e.target[0].value;
-      const password = e.target[1].value;
-
-      if (email === 'admin@fitfix.com' && password === 'password123') {
-        const fakeData = {
-          token: 'mock-admin-token-123',
-          email: 'admin@fitfix.com',
-          name: 'FitFix HQ',
-          gymId: 'mock-gym-id',
-          role: 'admin'
-        };
-        localStorage.setItem('token', fakeData.token);
-        localStorage.setItem('user', JSON.stringify(fakeData));
-        navigate('/admin');
-        return;
-      }
-
       setError('Network error, please try again later.');
     }
   };
@@ -88,7 +71,6 @@ export default function ManagerLogin() {
               type="email" 
               className="w-full px-4 py-3 bg-black/40 border border-gray-700/50 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-white placeholder-gray-500"
               placeholder="admin@fitfix.com"
-              defaultValue="admin@fitfix.com"
             />
           </div>
           <div>
@@ -97,7 +79,6 @@ export default function ManagerLogin() {
               type="password" 
               className="w-full px-4 py-3 bg-black/40 border border-gray-700/50 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-white placeholder-gray-500"
               placeholder="••••••••"
-              defaultValue="password123"
             />
           </div>
           <motion.button 

@@ -8,7 +8,7 @@ const userSchema = new mongoose.Schema({
   gymId: { type: mongoose.Schema.Types.ObjectId, ref: 'Gym', required: true },
   role: { type: String, enum: ['user', 'admin'], default: 'user' },
   subscriptionExpiry: { type: Date },
-  faceEncoding: { type: [Number], validate: [val => val.length === 128, '{PATH} must be a 128-dimensional array'] },
+  faceEncoding: { type: [Number], default: undefined, validate: [val => !val || val.length === 0 || val.length === 128, '{PATH} must be a 128-dimensional array'] },
   attendanceLog: [{ type: Date }],
   createdAt: { type: Date, default: Date.now }
 });

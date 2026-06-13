@@ -109,17 +109,40 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
-    const user = await User.findOne({ email: email.toLowerCase().trim() });
-    if (!user) {
-      return res.status(400).json({ error: 'Invalid login credentials' });
+    const emailClean = email.toLowerCase().trim();
+    let user = await User.findOne({ email: emailClean });
+    let role = 'user';
+    let match = false;
+
+    if (user) {
+      match = await bcrypt.compare(password, user.passwordHash);
+      if (!match) {
+        return res.status(400).json({ error: 'Invalid login credentials' });
+      }
+      role = user.role;
+    } else {
+      // Check if it is a gym admin from Gym collection
+      const gym = await Gym.findOne({ adminEmail: emailClean });
+      if (gym) {
+        match = await bcrypt.compare(password, gym.passwordHash);
+        if (!match) {
+          return res.status(400).json({ error: 'Invalid login credentials' });
+        }
+        // Create user profile for this admin in User collection for seamless future lookups
+        user = await User.create({
+          name: gym.name,
+          email: emailClean,
+          passwordHash: gym.passwordHash,
+          gymId: gym._id,
+          role: 'admin'
+        });
+        role = 'admin';
+      } else {
+        return res.status(400).json({ error: 'Invalid login credentials' });
+      }
     }
 
-    const match = await bcrypt.compare(password, user.passwordHash);
-    if (!match) {
-      return res.status(400).json({ error: 'Invalid login credentials' });
-    }
-
-    if (user.role === 'user') {
+    if (role === 'user') {
       const now = new Date();
       if (!user.subscriptionExpiry || user.subscriptionExpiry < now) {
         return res.status(403).json({ error: 'Access Denied: Subscription Expired.' });
@@ -133,6 +156,80 @@ router.post('/login', async (req, res) => {
       token,
       name: user.name,
       phone: user.phone,
+      gymId: user.gymId,
+      role: user.role,
+      subscriptionExpiry: user.subscriptionExpiry
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+router.post('/register', async (req, res) => {
+  const { name, email, password, adminToken, gymName } = req.body;
+
+  try {
+    if (!name || !email || !password) {
+      return res.status(400).json({ error: 'Name, email, and password are required' });
+    }
+
+    const existingUser = await User.findOne({ email: email.toLowerCase().trim() });
+    if (existingUser) {
+      return res.status(400).json({ error: 'Email already registered' });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(password, salt);
+
+    const ADMIN_SECRET = process.env.ADMIN_ACCESS_TOKEN || 'admin-secret-token-123';
+    let role = 'user';
+    let gymId = null;
+
+    if (adminToken && adminToken.trim() === ADMIN_SECRET) {
+      role = 'admin';
+      // Create a gym for this manager
+      const nameOfGym = gymName ? gymName.trim() : `${name}'s Gym`;
+      const gym = await Gym.create({
+        name: nameOfGym,
+        adminEmail: email.toLowerCase().trim(),
+        passwordHash,
+        subscriptionStatus: 'active'
+      });
+      gymId = gym._id;
+    } else {
+      // Find default gym or first gym
+      let gym = await Gym.findOne();
+      if (!gym) {
+        // Create a default gym if none exists
+        gym = await Gym.create({
+          name: 'FitFix HQ',
+          adminEmail: 'hq@fitfix.com',
+          passwordHash: await bcrypt.hash('password123', 10),
+          subscriptionStatus: 'active'
+        });
+      }
+      gymId = gym._id;
+    }
+
+    const expiry = new Date();
+    expiry.setMonth(expiry.getMonth() + 3); // 3 months free trial for new users
+
+    const user = await User.create({
+      name,
+      email: email.toLowerCase().trim(),
+      passwordHash,
+      gymId,
+      role,
+      subscriptionExpiry: role === 'admin' ? undefined : expiry
+    });
+
+    const token = createToken(user._id);
+
+    res.status(201).json({
+      _id: user._id,
+      email: user.email,
+      token,
+      name: user.name,
       gymId: user.gymId,
       role: user.role,
       subscriptionExpiry: user.subscriptionExpiry

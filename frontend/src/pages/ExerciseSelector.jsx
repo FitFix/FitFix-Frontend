@@ -1,27 +1,49 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { exerciseRules } from '../engine/ExerciseLogic';
 
 export default function ExerciseSelector() {
   const navigate = useNavigate();
+  const [exercises, setExercises] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const exerciseElements = [];
-  const entries = Object.entries(exerciseRules);
-  for (let i = 0; i < entries.length; i++) {
-    const id = entries[i][0];
-    const exercise = entries[i][1];
+  useEffect(() => {
+    const fetchExercises = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch('http://localhost:5000/api/ai/exercises', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setExercises(data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch exercises:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchExercises();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-accent text-lg font-bold">
+        Loading Exercises...
+      </div>
+    );
+  }
+
+  const exerciseElements = exercises.map((exercise) => {
+    const id = exercise.id;
     
-    const jointElements = [];
-    for (let j = 0; j < exercise.targetJoints.length; j++) {
-      const joint = exercise.targetJoints[j];
-      jointElements.push(
-        <span key={joint} className="px-2 py-1 bg-[#242424] rounded-md text-xs text-gray-300">
-          {joint}
-        </span>
-      );
-    }
+    const jointElements = exercise.targetJoints.map((joint) => (
+      <span key={joint} className="px-2 py-1 bg-[#242424] rounded-md text-xs text-gray-300">
+        {joint}
+      </span>
+    ));
     
-    exerciseElements.push(
+    return (
       <div 
         key={id} 
         onClick={() => navigate(`/workout/${id}`)}
@@ -34,7 +56,7 @@ export default function ExerciseSelector() {
         </div>
       </div>
     );
-  }
+  });
 
   return (
     <div className="py-10 w-full">

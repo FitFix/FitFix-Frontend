@@ -33,29 +33,83 @@ const itemVariants = {
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const [stats, setStats] = React.useState({
+    totalWorkouts: 0,
+    totalReps: 0,
+    activeDays: 0,
+    recentSessions: []
+  });
+  const [loading, setLoading] = React.useState(true);
 
-  const sessionElements = [];
-  for (let i = 1; i <= 3; i++) {
-    sessionElements.push(
-      <motion.div 
-        key={i} 
-        whileHover={{ scale: 1.02, backgroundColor: 'rgba(0,229,255,0.05)' }}
-        className="flex justify-between items-center p-4 bg-black/30 border border-white/5 rounded-2xl cursor-pointer transition-colors"
-      >
-        <div className="flex items-center gap-4">
-          <div className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center text-gray-400">
-            <Dumbbell size={18} />
+  React.useEffect(() => {
+    const fetchSummary = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          navigate('/login');
+          return;
+        }
+
+        const res = await fetch('http://localhost:5000/api/workouts/summary/me', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          setStats(data);
+        } else if (res.status === 401) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          navigate('/login');
+        }
+      } catch (err) {
+        console.error('Failed to fetch workout summary:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSummary();
+  }, [navigate]);
+
+  const sessionElements = stats.recentSessions && stats.recentSessions.length > 0 ? (
+    stats.recentSessions.map((session, index) => {
+      let name = 'Workout';
+      if (session.exerciseId === 'bicep_curl') name = 'Bicep Curls';
+      else if (session.exerciseId === 'squat') name = 'Squats';
+      else if (session.exerciseId === 'pushup') name = 'Push-ups';
+
+      return (
+        <motion.div 
+          key={session._id || index} 
+          whileHover={{ scale: 1.02, backgroundColor: 'rgba(0,229,255,0.05)' }}
+          className="flex justify-between items-center p-4 bg-black/30 border border-white/5 rounded-2xl cursor-pointer transition-colors"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center text-gray-400">
+              <Dumbbell size={18} />
+            </div>
+            <div>
+              <p className="font-bold text-lg">{name}</p>
+              <p className="text-sm text-gray-400">{new Date(session.date).toLocaleString()}</p>
+            </div>
           </div>
-          <div>
-            <p className="font-bold text-lg">Bicep Curls</p>
-            <p className="text-sm text-gray-400">Today, 9:41 AM</p>
+          <div className="text-right">
+            <p className="font-bold text-accent text-lg">{session.reps} Reps</p>
+            <p className="text-sm text-gray-400">Avg {session.maxDepthAngle}° Angle</p>
           </div>
-        </div>
-        <div className="text-right">
-          <p className="font-bold text-accent text-lg">45 Reps</p>
-          <p className="text-sm text-gray-400">Avg 145° Depth</p>
-        </div>
-      </motion.div>
+        </motion.div>
+      );
+    })
+  ) : (
+    <div className="text-gray-500 text-center py-8 font-sans">No workout sessions logged yet.</div>
+  );
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-accent text-lg font-bold">
+        Loading Athlete Profile...
+      </div>
     );
   }
 
@@ -77,6 +131,7 @@ export default function Dashboard() {
           <button 
             onClick={() => {
               localStorage.removeItem('token');
+              localStorage.removeItem('user');
               navigate('/login');
             }}
             className="px-6 py-3 bg-transparent text-gray-400 hover:text-white transition-colors text-sm font-bold"
@@ -105,21 +160,21 @@ export default function Dashboard() {
           <div className="p-4 bg-accent/10 rounded-xl text-accent"><Activity size={28} /></div>
           <div>
             <p className="text-gray-400 text-sm font-medium">Total Workouts</p>
-            <p className="text-3xl font-black mt-1">24</p>
+            <p className="text-3xl font-black mt-1">{stats.totalWorkouts}</p>
           </div>
         </motion.div>
         <motion.div variants={itemVariants} whileHover={{ y: -5 }} className="glass p-6 rounded-2xl flex items-center gap-5 transition-transform duration-300">
           <div className="p-4 bg-accent/10 rounded-xl text-accent"><Dumbbell size={28} /></div>
           <div>
             <p className="text-gray-400 text-sm font-medium">Total Reps</p>
-            <p className="text-3xl font-black mt-1">1,402</p>
+            <p className="text-3xl font-black mt-1">{stats.totalReps}</p>
           </div>
         </motion.div>
         <motion.div variants={itemVariants} whileHover={{ y: -5 }} className="glass p-6 rounded-2xl flex items-center gap-5 transition-transform duration-300">
           <div className="p-4 bg-accent/10 rounded-xl text-accent"><History size={28} /></div>
           <div>
             <p className="text-gray-400 text-sm font-medium">Active Days</p>
-            <p className="text-3xl font-black mt-1">12</p>
+            <p className="text-3xl font-black mt-1">{stats.activeDays}</p>
           </div>
         </motion.div>
       </div>
