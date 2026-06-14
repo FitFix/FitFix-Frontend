@@ -16,7 +16,7 @@ export default function AIVisionContainer() {
   const [formStatus, setFormStatus] = useState({ message: 'Click "Start Camera" to begin', color: 'gray' });
   const [showSkeleton, setShowSkeleton] = useState(true);
   const [isCameraActive, setIsCameraActive] = useState(false);
-  const [repState, setRepState] = useState('down');
+  const [, setRepState] = useState('down');
 
   const captureFrame = () => {
     const video = videoRef.current;
