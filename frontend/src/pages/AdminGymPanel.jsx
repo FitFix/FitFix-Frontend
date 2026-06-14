@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Users, Shield, TrendingUp, AlertTriangle, Briefcase, Search, Trash2, CalendarPlus, X, Phone } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Users, Shield, AlertTriangle, Briefcase, Search, Trash2, X, Phone } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { io } from 'socket.io-client';
 
@@ -11,7 +11,6 @@ export default function AdminGymPanel() {
   const [selectedProfile, setSelectedProfile] = useState(null);
   const [showAddMember, setShowAddMember] = useState(false);
   const [entryAlert, setEntryAlert] = useState(null);
-  const [gymId, setGymId] = useState('');
 
   // Fetch data
   const fetchData = async () => {
@@ -23,7 +22,6 @@ export default function AdminGymPanel() {
         return;
       }
       const user = JSON.parse(userStr);
-      setGymId(user.gymId);
 
       const [membersRes, trainersRes] = await Promise.all([
         fetch(`http://localhost:5000/api/admin/members`, {

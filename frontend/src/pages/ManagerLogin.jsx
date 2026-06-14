@@ -30,8 +30,7 @@ export default function ManagerLogin() {
       
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data));
-      navigate('/admin');
-    } catch (err) {
+    } catch {
       setError('Network error, please try again later.');
     }
   };
@@ -39,7 +38,7 @@ export default function ManagerLogin() {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4 relative overflow-hidden bg-background">
       <div className="absolute top-1/4 right-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-1/4 left-1/4 w-[30rem] h-[30rem] bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-1/4 left-1/4 w-120 h-120 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
 
       <motion.div 
         initial={{ opacity: 0, y: -20 }}

@@ -1,7 +1,7 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { exerciseRules } from '../engine/ExerciseLogic';
-import { Activity, X, Camera, Video, VideoOff } from 'lucide-react';
+import { X, Camera, Video, VideoOff } from 'lucide-react';
 
 export default function AIVisionContainer() {
   const { exerciseId } = useParams();
@@ -59,6 +59,61 @@ export default function AIVisionContainer() {
     setFormStatus({ message: 'Camera stopped', color: 'gray' });
   };
 
+  const drawSkeleton = useCallback((keypoints) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    const connections = [
+      ['left_shoulder', 'right_shoulder'], ['left_shoulder', 'left_elbow'], ['left_elbow', 'left_wrist'],
+      ['right_shoulder', 'right_elbow'], ['right_elbow', 'right_wrist'], ['left_shoulder', 'left_hip'],
+      ['right_shoulder', 'right_hip'], ['left_hip', 'right_hip'], ['left_hip', 'left_knee'],
+      ['left_knee', 'left_ankle'], ['right_hip', 'right_knee'], ['right_knee', 'right_ankle']
+    ];
+
+    ctx.strokeStyle = '#00E5FF';
+    ctx.lineWidth = 4;
+
+    connections.forEach(([p1Name, p2Name]) => {
+      const p1 = keypoints.find(k => k.name === p1Name);
+      const p2 = keypoints.find(k => k.name === p2Name);
+      if (p1 && p2 && p1.score > 0.3 && p2.score > 0.3) {
+        ctx.beginPath();
+        ctx.moveTo(p1.x * 2, p1.y * 2); // Scale up coordinates from 320x240 to 640x480
+        ctx.lineTo(p2.x * 2, p2.y * 2);
+        ctx.stroke();
+      }
+    });
+
+    keypoints.forEach(kp => {
+      if (kp.score > 0.3) {
+        ctx.fillStyle = '#FFFFFF';
+        ctx.beginPath();
+        ctx.arc(kp.x * 2, kp.y * 2, 6, 0, 2 * Math.PI);
+        ctx.fill();
+      }
+    });
+  }, []);
+
+  const processKeypoints = useCallback((keypoints, angle, feedback) => {
+    setCurrentAngle(angle);
+    setFormStatus(feedback);
+
+    if (exercise && exercise.thresholds) {
+      const { min, max } = exercise.thresholds;
+      setRepState(currentRepState => {
+        if (angle < min + 20 && currentRepState === 'down') {
+          return 'up';
+        } else if (angle > max - 20 && currentRepState === 'up') {
+          setReps(r => r + 1);
+          return 'down';
+        }
+        return currentRepState;
+      });
+    }
+  }, [exercise]);
+
   useEffect(() => {
     if (!exercise) {
       navigate('/exercises');
@@ -110,7 +165,7 @@ export default function AIVisionContainer() {
     return () => {
       active = false;
     };
-  }, [exerciseId, isCameraActive, showSkeleton]);
+  }, [exercise, exerciseId, navigate, isCameraActive, showSkeleton, processKeypoints, drawSkeleton]);
 
   // Clean up camera stream tracks ONLY on unmount
   useEffect(() => {
@@ -156,55 +211,7 @@ export default function AIVisionContainer() {
     }
   };
 
-  const processKeypoints = (keypoints, angle, feedback) => {
-    setCurrentAngle(angle);
-    setFormStatus(feedback);
 
-    const { min, max } = exercise.thresholds;
-    if (angle < min + 20 && repState === 'down') {
-      setRepState('up');
-    } else if (angle > max - 20 && repState === 'up') {
-      setReps(r => r + 1);
-      setRepState('down');
-    }
-  };
-
-  const drawSkeleton = (keypoints) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    const connections = [
-      ['left_shoulder', 'right_shoulder'], ['left_shoulder', 'left_elbow'], ['left_elbow', 'left_wrist'],
-      ['right_shoulder', 'right_elbow'], ['right_elbow', 'right_wrist'], ['left_shoulder', 'left_hip'],
-      ['right_shoulder', 'right_hip'], ['left_hip', 'right_hip'], ['left_hip', 'left_knee'],
-      ['left_knee', 'left_ankle'], ['right_hip', 'right_knee'], ['right_knee', 'right_ankle']
-    ];
-
-    ctx.strokeStyle = '#00E5FF';
-    ctx.lineWidth = 4;
-
-    connections.forEach(([p1Name, p2Name]) => {
-      const p1 = keypoints.find(k => k.name === p1Name);
-      const p2 = keypoints.find(k => k.name === p2Name);
-      if (p1 && p2 && p1.score > 0.3 && p2.score > 0.3) {
-        ctx.beginPath();
-        ctx.moveTo(p1.x * 2, p1.y * 2); // Scale up coordinates from 320x240 to 640x480
-        ctx.lineTo(p2.x * 2, p2.y * 2);
-        ctx.stroke();
-      }
-    });
-
-    keypoints.forEach(kp => {
-      if (kp.score > 0.3) {
-        ctx.fillStyle = '#FFFFFF';
-        ctx.beginPath();
-        ctx.arc(kp.x * 2, kp.y * 2, 6, 0, 2 * Math.PI);
-        ctx.fill();
-      }
-    });
-  };
 
   if (!exercise) return null;
 
@@ -243,7 +250,7 @@ export default function AIVisionContainer() {
         className={`absolute inset-0 w-full h-full object-cover ${(!showSkeleton || !isCameraActive) && 'hidden'}`}
       />
 
-      <div className="absolute top-0 left-0 right-0 p-4 flex justify-between items-center bg-gradient-to-b from-black/80 to-transparent z-10">
+      <div className="absolute top-0 left-0 right-0 p-4 flex justify-between items-center bg-linear-to-b from-black/80 to-transparent z-10">
         <button 
           onClick={() => {
             stopCamera();
