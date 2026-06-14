@@ -84,6 +84,35 @@ class AIService {
       }
     });
   }
+
+  async detectHands(image) {
+    return new Promise((resolve) => {
+      const callback = (err, response) => {
+        if (err) {
+          console.warn('Could not reach MediaPipe python gRPC microservice. Fallback active.', err.message);
+          resolve(null);
+        } else {
+          resolve({
+            hands: response.hands || [],
+            count: response.count || 0
+          });
+        }
+      };
+
+      try {
+        if (typeof client.detectHands === 'function') {
+          client.detectHands({ image }, callback);
+        } else if (typeof client.DetectHands === 'function') {
+          client.DetectHands({ image }, callback);
+        } else {
+          throw new Error('YoloPose gRPC method DetectHands/detectHands not found on client');
+        }
+      } catch (err) {
+        console.warn('gRPC client invocation error:', err.message);
+        resolve(null);
+      }
+    });
+  }
 }
 
 module.exports = new AIService();

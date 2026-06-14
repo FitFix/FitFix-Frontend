@@ -50,10 +50,23 @@ class PushUp extends Exercise {
   }
 }
 
+class HandDetection extends Exercise {
+  constructor() {
+    super('hand_detection', 'Hand Tracking', 'Track 21 hand landmarks and count hands in the frame.', ['hand_wrist', 'fingers'], { min: 0, max: 2 });
+  }
+
+  getFeedback(count) {
+    if (count === 0) return { message: 'Show your hands to the camera', color: 'yellow' };
+    if (count === 1) return { message: '1 Hand Detected', color: 'green' };
+    return { message: `${count} Hands Detected`, color: 'green' };
+  }
+}
+
 const exerciseRegistry = {
   'bicep_curl': new BicepCurl(),
   'squat': new Squat(),
-  'pushup': new PushUp()
+  'pushup': new PushUp(),
+  'hand_detection': new HandDetection()
 };
 
 module.exports = {

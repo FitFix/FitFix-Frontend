@@ -39,12 +39,23 @@ class YoloPoseStub:
                 request_serializer=yolo__pb2.PredictRequest.SerializeToString,
                 response_deserializer=yolo__pb2.PredictResponse.FromString,
                 _registered_method=True)
+        self.DetectHands = channel.unary_unary(
+                '/yolo.YoloPose/DetectHands',
+                request_serializer=yolo__pb2.HandRequest.SerializeToString,
+                response_deserializer=yolo__pb2.HandResponse.FromString,
+                _registered_method=True)
 
 
 class YoloPoseServicer:
     """Missing associated documentation comment in .proto file."""
 
     def Predict(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def DetectHands(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -57,6 +68,11 @@ def add_YoloPoseServicer_to_server(servicer, server):
                     servicer.Predict,
                     request_deserializer=yolo__pb2.PredictRequest.FromString,
                     response_serializer=yolo__pb2.PredictResponse.SerializeToString,
+            ),
+            'DetectHands': grpc.unary_unary_rpc_method_handler(
+                    servicer.DetectHands,
+                    request_deserializer=yolo__pb2.HandRequest.FromString,
+                    response_serializer=yolo__pb2.HandResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -86,6 +102,33 @@ class YoloPose:
             '/yolo.YoloPose/Predict',
             yolo__pb2.PredictRequest.SerializeToString,
             yolo__pb2.PredictResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def DetectHands(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/yolo.YoloPose/DetectHands',
+            yolo__pb2.HandRequest.SerializeToString,
+            yolo__pb2.HandResponse.FromString,
             options,
             channel_credentials,
             insecure,

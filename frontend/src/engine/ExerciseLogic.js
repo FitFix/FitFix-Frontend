@@ -107,5 +107,16 @@ export const exerciseRules = {
       if (angle > 80) return { message: 'Good height', color: 'green' };
       return { message: 'Raise higher', color: 'yellow' };
     }
+  },
+  'hand_detection': {
+    name: 'Hand Tracking',
+    description: 'Track 21 hand landmarks and count hands in the frame.',
+    targetJoints: ['hand_wrist', 'fingers'],
+    thresholds: { min: 0, max: 2 },
+    formCorrection: (count) => {
+      if (count === 0) return { message: 'Show your hands to the camera', color: 'yellow' };
+      if (count === 1) return { message: '1 Hand Detected', color: 'green' };
+      return { message: `${count} Hands Detected`, color: 'green' };
+    }
   }
 };

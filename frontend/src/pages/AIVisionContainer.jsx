@@ -96,6 +96,67 @@ export default function AIVisionContainer() {
     });
   }, []);
 
+  const drawHandSkeleton = useCallback((hands) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    ctx.strokeStyle = '#00E5FF';
+    ctx.lineWidth = 3;
+
+    hands.forEach(hand => {
+      const lms = hand.landmarks;
+      if (!lms || lms.length < 21) return;
+
+      const fingers = [
+        [0, 1, 2, 3, 4],       // Thumb
+        [0, 5, 6, 7, 8],       // Index
+        [9, 10, 11, 12],       // Middle
+        [13, 14, 15, 16],      // Ring
+        [17, 18, 19, 20]       // Pinky
+      ];
+
+      // Connect finger joints
+      fingers.forEach(finger => {
+        for (let i = 0; i < finger.length - 1; i++) {
+          const p1 = lms[finger[i]];
+          const p2 = lms[finger[i+1]];
+          ctx.beginPath();
+          ctx.moveTo(p1.x * canvas.width, p1.y * canvas.height);
+          ctx.lineTo(p2.x * canvas.width, p2.y * canvas.height);
+          ctx.stroke();
+        }
+      });
+
+      // Connect bases
+      const bases = [0, 5, 9, 13, 17];
+      for (let i = 0; i < bases.length - 1; i++) {
+        const p1 = lms[bases[i]];
+        const p2 = lms[bases[i+1]];
+        ctx.beginPath();
+        ctx.moveTo(p1.x * canvas.width, p1.y * canvas.height);
+        ctx.lineTo(p2.x * canvas.width, p2.y * canvas.height);
+        ctx.stroke();
+      }
+      // Connect wrist to pinky base
+      const pWrist = lms[0];
+      const pPinkyBase = lms[17];
+      ctx.beginPath();
+      ctx.moveTo(pWrist.x * canvas.width, pWrist.y * canvas.height);
+      ctx.lineTo(pPinkyBase.x * canvas.width, pPinkyBase.y * canvas.height);
+      ctx.stroke();
+
+      // Draw landmark points
+      lms.forEach(lm => {
+        ctx.fillStyle = '#FFFFFF';
+        ctx.beginPath();
+        ctx.arc(lm.x * canvas.width, lm.y * canvas.height, 4, 0, 2 * Math.PI);
+        ctx.fill();
+      });
+    });
+  }, []);
+
   const processKeypoints = useCallback((keypoints, angle, feedback) => {
     setCurrentAngle(angle);
     setFormStatus(feedback);
@@ -140,11 +201,17 @@ export default function AIVisionContainer() {
 
           if (res.ok && active && isCameraActive) {
             const data = await res.json();
-            if (data.success && data.keypoints) {
-              processKeypoints(data.keypoints, data.angle, data.feedback);
-              if (showSkeleton) drawSkeleton(data.keypoints);
+            if (exerciseId === 'hand_detection') {
+              setCurrentAngle(data.count);
+              setFormStatus(data.feedback);
+              if (showSkeleton) drawHandSkeleton(data.hands || []);
             } else {
-              setFormStatus(data.feedback || { message: 'Position yourself in frame', color: 'yellow' });
+              if (data.success && data.keypoints) {
+                processKeypoints(data.keypoints, data.angle, data.feedback);
+                if (showSkeleton) drawSkeleton(data.keypoints);
+              } else {
+                setFormStatus(data.feedback || { message: 'Position yourself in frame', color: 'yellow' });
+              }
             }
           }
         } catch (err) {
@@ -165,7 +232,7 @@ export default function AIVisionContainer() {
     return () => {
       active = false;
     };
-  }, [exercise, exerciseId, navigate, isCameraActive, showSkeleton, processKeypoints, drawSkeleton]);
+  }, [exercise, exerciseId, navigate, isCameraActive, showSkeleton, processKeypoints, drawSkeleton, drawHandSkeleton]);
 
   // Clean up camera stream tracks ONLY on unmount
   useEffect(() => {
@@ -287,13 +354,15 @@ export default function AIVisionContainer() {
       {isCameraActive && (
         <div className="absolute bottom-6 right-6 w-72 bg-black/75 backdrop-blur-md border border-gray-800 p-4 rounded-2xl z-10 flex flex-col gap-3">
           <div className="flex gap-2">
+            {exerciseId !== 'hand_detection' && (
+              <div className="flex-1 text-center p-2 bg-gray-900/50 rounded-xl border border-gray-800">
+                <p className="text-gray-400 text-xs font-semibold mb-0.5">REPS</p>
+                <p className="text-3xl font-black text-white">{reps}</p>
+              </div>
+            )}
             <div className="flex-1 text-center p-2 bg-gray-900/50 rounded-xl border border-gray-800">
-              <p className="text-gray-400 text-xs font-semibold mb-0.5">REPS</p>
-              <p className="text-3xl font-black text-white">{reps}</p>
-            </div>
-            <div className="flex-1 text-center p-2 bg-gray-900/50 rounded-xl border border-gray-800">
-              <p className="text-gray-400 text-xs font-semibold mb-0.5">ANGLE</p>
-              <p className="text-3xl font-black text-accent">{currentAngle}°</p>
+              <p className="text-gray-400 text-xs font-semibold mb-0.5">{exerciseId === 'hand_detection' ? 'HANDS' : 'ANGLE'}</p>
+              <p className="text-3xl font-black text-accent">{currentAngle}{exerciseId === 'hand_detection' ? '' : '°'}</p>
             </div>
           </div>
           

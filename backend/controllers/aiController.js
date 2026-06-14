@@ -88,6 +88,26 @@ class AIController {
       }
 
       const { image, keypoints: clientKeypoints } = req.body;
+
+      if (exercise.id === 'hand_detection') {
+        let hands = [];
+        let count = 0;
+        if (image) {
+          const result = await aiService.detectHands(image);
+          if (result) {
+            hands = result.hands || [];
+            count = result.count || 0;
+          }
+        }
+        return res.json({
+          success: true,
+          hands,
+          count,
+          angle: count,
+          feedback: exercise.getFeedback(count)
+        });
+      }
+
       let keypoints = clientKeypoints;
 
       if (image) {

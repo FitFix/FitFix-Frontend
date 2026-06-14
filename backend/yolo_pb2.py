@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\nyolo.proto\x12\x04yolo\"\x1f\n\x0ePredictRequest\x12\r\n\x05image\x18\x01 \x01(\t\"=\n\x08Keypoint\x12\t\n\x01x\x18\x01 \x01(\x02\x12\t\n\x01y\x18\x02 \x01(\x02\x12\r\n\x05score\x18\x03 \x01(\x02\x12\x0c\n\x04name\x18\x04 \x01(\t\"4\n\x0fPredictResponse\x12!\n\tkeypoints\x18\x01 \x03(\x0b\x32\x0e.yolo.Keypoint2B\n\x08YoloPose\x12\x36\n\x07Predict\x12\x14.yolo.PredictRequest\x1a\x15.yolo.PredictResponseb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\nyolo.proto\x12\x04yolo\"\x1f\n\x0ePredictRequest\x12\r\n\x05image\x18\x01 \x01(\t\"=\n\x08Keypoint\x12\t\n\x01x\x18\x01 \x01(\x02\x12\t\n\x01y\x18\x02 \x01(\x02\x12\r\n\x05score\x18\x03 \x01(\x02\x12\x0c\n\x04name\x18\x04 \x01(\t\"4\n\x0fPredictResponse\x12!\n\tkeypoints\x18\x01 \x03(\x0b\x32\x0e.yolo.Keypoint\"\x1c\n\x0bHandRequest\x12\r\n\x05image\x18\x01 \x01(\t\"+\n\x08Landmark\x12\t\n\x01x\x18\x01 \x01(\x02\x12\t\n\x01y\x18\x02 \x01(\x02\x12\t\n\x01z\x18\x03 \x01(\x02\"L\n\x04Hand\x12!\n\tlandmarks\x18\x01 \x03(\x0b\x32\x0e.yolo.Landmark\x12\x12\n\nhandedness\x18\x02 \x01(\t\x12\r\n\x05score\x18\x03 \x01(\x02\"8\n\x0cHandResponse\x12\x19\n\x05hands\x18\x01 \x03(\x0b\x32\n.yolo.Hand\x12\r\n\x05\x63ount\x18\x02 \x01(\x05\x32x\n\x08YoloPose\x12\x36\n\x07Predict\x12\x14.yolo.PredictRequest\x1a\x15.yolo.PredictResponse\x12\x34\n\x0b\x44\x65tectHands\x12\x11.yolo.HandRequest\x1a\x12.yolo.HandResponseb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -37,6 +37,14 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_KEYPOINT']._serialized_end=114
   _globals['_PREDICTRESPONSE']._serialized_start=116
   _globals['_PREDICTRESPONSE']._serialized_end=168
-  _globals['_YOLOPOSE']._serialized_start=170
-  _globals['_YOLOPOSE']._serialized_end=236
+  _globals['_HANDREQUEST']._serialized_start=170
+  _globals['_HANDREQUEST']._serialized_end=198
+  _globals['_LANDMARK']._serialized_start=200
+  _globals['_LANDMARK']._serialized_end=243
+  _globals['_HAND']._serialized_start=245
+  _globals['_HAND']._serialized_end=321
+  _globals['_HANDRESPONSE']._serialized_start=323
+  _globals['_HANDRESPONSE']._serialized_end=379
+  _globals['_YOLOPOSE']._serialized_start=381
+  _globals['_YOLOPOSE']._serialized_end=501
 # @@protoc_insertion_point(module_scope)
