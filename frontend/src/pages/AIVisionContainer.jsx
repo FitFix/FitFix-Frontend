@@ -291,6 +291,7 @@ export default function AIVisionContainer() {
         autoPlay 
         playsInline 
         muted 
+        style={{ transform: 'scaleX(-1)' }}
         className={`absolute inset-0 w-full h-full object-cover opacity-80 ${!isCameraActive ? 'hidden' : ''}`}
       />
       
@@ -316,6 +317,7 @@ export default function AIVisionContainer() {
         ref={canvasRef} 
         width={640} 
         height={480} 
+        style={{ transform: 'scaleX(-1)' }}
         className={`absolute inset-0 w-full h-full object-cover ${(!showSkeleton || !isCameraActive) && 'hidden'}`}
       />
 
