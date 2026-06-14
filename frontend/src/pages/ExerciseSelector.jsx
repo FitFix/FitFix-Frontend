@@ -1,8 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Sun, Moon } from 'lucide-react';
+import { ThemeContext } from '../context/ThemeContext';
 
 export default function ExerciseSelector() {
   const navigate = useNavigate();
+  const { theme, toggleTheme } = useContext(ThemeContext);
   const [exercises, setExercises] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -59,10 +62,19 @@ export default function ExerciseSelector() {
   });
 
   return (
-    <div className="py-10 w-full">
+    <div className="py-10 px-4 md:px-8 max-w-6xl mx-auto w-full">
       <header className="mb-8 flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Select Workout</h1>
-        <button onClick={() => navigate('/dashboard')} className="text-gray-400 hover:text-white">Dashboard</button>
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={toggleTheme}
+            className="p-2 bg-transparent text-gray-400 hover:text-accent transition-colors flex items-center justify-center rounded-xl"
+            title="Toggle Theme"
+          >
+            {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+          </button>
+          <button onClick={() => navigate('/dashboard')} className="text-gray-400 hover:text-white">Dashboard</button>
+        </div>
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

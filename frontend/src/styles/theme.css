@@ -2,13 +2,13 @@
 
 :root {
   --font-primary: 'Google Sans', 'Outfit', sans-serif;
-  --bg-color: #0b0c10;
-  --text-color: #ffffff;
-  --accent-color: #00f0ff;
-  --accent-hover: #00d0e0;
-  --card-bg: #111217;
-  --border-color: #1f2129;
-  --text-muted: #8892b0;
+  --bg-color: var(--background);
+  --text-color: var(--text);
+  --accent-color: var(--accent);
+  --accent-hover: var(--accent);
+  --card-bg: var(--card);
+  --border-color: var(--border);
+  --text-muted: var(--text-muted);
 }
 
 body {

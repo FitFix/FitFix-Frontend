@@ -1,11 +1,13 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useContext } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { exerciseRules } from '../engine/ExerciseLogic';
-import { X, Camera, Video, VideoOff } from 'lucide-react';
+import { X, Camera, Video, VideoOff, Sun, Moon } from 'lucide-react';
+import { ThemeContext } from '../context/ThemeContext';
 
 export default function AIVisionContainer() {
   const { exerciseId } = useParams();
   const navigate = useNavigate();
+  const { theme, toggleTheme } = useContext(ThemeContext);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
@@ -330,6 +332,13 @@ export default function AIVisionContainer() {
         <h2 className="text-xl font-bold tracking-wider">{exercise.name}</h2>
         
         <div className="flex gap-2">
+          <button 
+            onClick={toggleTheme}
+            className="p-2 bg-gray-900/60 rounded-full text-white backdrop-blur-md hover:text-accent transition-colors flex items-center justify-center"
+            title="Toggle Theme"
+          >
+            {theme === 'dark' ? <Sun size={24} /> : <Moon size={24} />}
+          </button>
           {isCameraActive && (
             <>
               <button 
