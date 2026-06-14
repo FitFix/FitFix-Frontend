@@ -1,4 +1,20 @@
 const User = require('../models/User');
+const grpc = require('@grpc/grpc-js');
+const protoLoader = require('@grpc/proto-loader');
+const path = require('path');
+
+const PROTO_PATH = path.join(__dirname, '../yolo.proto');
+
+const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
+  keepCase: true,
+  longs: String,
+  enums: String,
+  defaults: true,
+  oneofs: true
+});
+
+const yoloProto = grpc.loadPackageDefinition(packageDefinition).yolo;
+const client = new yoloProto.YoloPose('127.0.0.1:5001', grpc.credentials.createInsecure());
 
 class AIService {
   euclideanDistance(vec1, vec2) {
@@ -44,21 +60,29 @@ class AIService {
   }
 
   async predictYOLOPose(image) {
-    try {
-      const response = await fetch('http://127.0.0.1:5001/predict', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image })
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        return data.keypoints;
+    return new Promise((resolve) => {
+      const callback = (err, response) => {
+        if (err) {
+          console.warn('Could not reach YOLO python gRPC microservice. Fallback active.', err.message);
+          resolve(null);
+        } else {
+          resolve(response.keypoints || []);
+        }
+      };
+
+      try {
+        if (typeof client.predict === 'function') {
+          client.predict({ image }, callback);
+        } else if (typeof client.Predict === 'function') {
+          client.Predict({ image }, callback);
+        } else {
+          throw new Error('YoloPose gRPC method Predict/predict not found on client');
+        }
+      } catch (err) {
+        console.warn('gRPC client invocation error:', err.message);
+        resolve(null);
       }
-    } catch (err) {
-      console.warn('Could not reach YOLO python microservice. Fallback active.', err.message);
-    }
-    return null;
+    });
   }
 }
 

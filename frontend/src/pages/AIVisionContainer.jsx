@@ -285,25 +285,25 @@ export default function AIVisionContainer() {
       </div>
 
       {isCameraActive && (
-        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 w-11/12 max-w-md bg-black/60 backdrop-blur-lg border border-gray-700 p-6 rounded-3xl z-10">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="text-center p-3 bg-gray-800/50 rounded-2xl">
-              <p className="text-gray-400 text-sm font-medium mb-1">REPS</p>
-              <p className="text-5xl font-bold text-white">{reps}</p>
+        <div className="absolute bottom-6 right-6 w-72 bg-black/75 backdrop-blur-md border border-gray-800 p-4 rounded-2xl z-10 flex flex-col gap-3">
+          <div className="flex gap-2">
+            <div className="flex-1 text-center p-2 bg-gray-900/50 rounded-xl border border-gray-800">
+              <p className="text-gray-400 text-xs font-semibold mb-0.5">REPS</p>
+              <p className="text-3xl font-black text-white">{reps}</p>
             </div>
-            <div className="text-center p-3 bg-gray-800/50 rounded-2xl">
-              <p className="text-gray-400 text-sm font-medium mb-1">ANGLE</p>
-              <p className="text-5xl font-bold text-accent">{currentAngle}°</p>
+            <div className="flex-1 text-center p-2 bg-gray-900/50 rounded-xl border border-gray-800">
+              <p className="text-gray-400 text-xs font-semibold mb-0.5">ANGLE</p>
+              <p className="text-3xl font-black text-accent">{currentAngle}°</p>
             </div>
           </div>
           
-          <div className="mt-4 p-4 rounded-2xl text-center font-bold text-lg border border-gray-700 shadow-inner" style={{ backgroundColor: `${formStatus.color}20`, color: formStatus.color, borderColor: formStatus.color }}>
+          <div className="p-2.5 rounded-xl text-center font-bold text-sm border shadow-inner" style={{ backgroundColor: `${formStatus.color}15`, color: formStatus.color, borderColor: `${formStatus.color}40` }}>
             {formStatus.message}
           </div>
 
           <button 
             onClick={handleFinishWorkout}
-            className="mt-4 w-full py-3 bg-accent text-black font-bold rounded-2xl hover:bg-accent/90 transition-all text-center"
+            className="w-full py-2.5 bg-accent hover:bg-accent/90 text-black font-extrabold rounded-xl transition-all text-sm text-center shadow-lg shadow-accent/10 hover:scale-[1.02]"
           >
             Finish & Save Session
           </button>

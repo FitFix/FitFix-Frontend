@@ -1,10 +1,10 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+
 import { Shield } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function ManagerLogin() {
-  const navigate = useNavigate();
+  
   const [error, setError] = React.useState('');
 
   const handleLogin = async (e) => {
