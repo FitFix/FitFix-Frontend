@@ -3,6 +3,7 @@ import { Users, Shield, AlertTriangle, Briefcase, Search, Trash2, X, Phone, Sun,
 import { motion, AnimatePresence } from 'framer-motion';
 import { io } from 'socket.io-client';
 import { ThemeContext } from '../context/ThemeContext';
+import { API_BASE_URL } from '../config';
 
 export default function AdminGymPanel() {
   const { theme, toggleTheme } = useContext(ThemeContext);
@@ -26,10 +27,10 @@ export default function AdminGymPanel() {
       const user = JSON.parse(userStr);
 
       const [membersRes, trainersRes] = await Promise.all([
-        fetch(`http://localhost:5000/api/admin/members`, {
+        fetch(`${API_BASE_URL}/api/admin/members`, {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
-        fetch(`http://localhost:5000/api/admin/trainers`, {
+        fetch(`${API_BASE_URL}/api/admin/trainers`, {
           headers: { 'Authorization': `Bearer ${token}` }
         })
       ]);
@@ -53,7 +54,7 @@ export default function AdminGymPanel() {
     fetchData();
 
     // Socket.io connection
-    const socket = io('http://localhost:5000');
+    const socket = io(API_BASE_URL);
     socket.on('entry-alert', (data) => {
       setEntryAlert(data);
       if (data.status === 'valid') fetchData(); // Refresh attendance
@@ -66,7 +67,7 @@ export default function AdminGymPanel() {
   const handleExtendSubscription = async (id, months) => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:5000/api/admin/members/${id}/extend`, {
+      const res = await fetch(`${API_BASE_URL}/api/admin/members/${id}/extend`, {
         method: 'PUT',
         headers: { 
           'Content-Type': 'application/json',
@@ -88,7 +89,7 @@ export default function AdminGymPanel() {
   const handleSetCustomExpiry = async (id, dateStr) => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:5000/api/admin/members/${id}`, {
+      const res = await fetch(`${API_BASE_URL}/api/admin/members/${id}`, {
         method: 'PUT',
         headers: { 
           'Content-Type': 'application/json',
@@ -116,7 +117,7 @@ export default function AdminGymPanel() {
 
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:5000/api/admin/members`, {
+      const res = await fetch(`${API_BASE_URL}/api/admin/members`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -140,7 +141,7 @@ export default function AdminGymPanel() {
     if (!window.confirm('Are you sure you want to delete this member?')) return;
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:5000/api/admin/members/${id}`, {
+      const res = await fetch(`${API_BASE_URL}/api/admin/members/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -162,7 +163,7 @@ export default function AdminGymPanel() {
     const salary = e.target[2].value;
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:5000/api/admin/trainers`, {
+      const res = await fetch(`${API_BASE_URL}/api/admin/trainers`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -184,7 +185,7 @@ export default function AdminGymPanel() {
   const handleDeleteTrainer = async (id) => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:5000/api/admin/trainers/${id}`, {
+      const res = await fetch(`${API_BASE_URL}/api/admin/trainers/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });

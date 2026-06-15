@@ -4,6 +4,7 @@ import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer } fro
 import { Activity, Dumbbell, History, Sun, Moon } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { ThemeContext } from '../context/ThemeContext';
+import { API_BASE_URL } from '../config';
 
 const mockData = [
   { subject: 'Speed', A: 120, fullMark: 150 },
@@ -52,7 +53,7 @@ export default function Dashboard() {
           return;
         }
 
-        const res = await fetch('http://localhost:5000/api/workouts/summary/me', {
+        const res = await fetch(`${API_BASE_URL}/api/workouts/summary/me`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
 

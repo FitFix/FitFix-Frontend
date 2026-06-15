@@ -2,6 +2,7 @@ import { useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Sun, Moon } from 'lucide-react';
 import { ThemeContext } from '../context/ThemeContext';
+import { API_BASE_URL } from '../config';
 
 export default function ExerciseSelector() {
   const navigate = useNavigate();
@@ -13,7 +14,7 @@ export default function ExerciseSelector() {
     const fetchExercises = async () => {
       try {
         const token = localStorage.getItem('token');
-        const res = await fetch('http://localhost:5000/api/ai/exercises', {
+        const res = await fetch(`${API_BASE_URL}/api/ai/exercises`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (res.ok) {

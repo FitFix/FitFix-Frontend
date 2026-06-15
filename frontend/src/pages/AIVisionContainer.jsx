@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { exerciseRules } from '../engine/ExerciseLogic';
 import { X, Camera, Video, VideoOff, Sun, Moon } from 'lucide-react';
 import { ThemeContext } from '../context/ThemeContext';
+import { API_BASE_URL } from '../config';
 
 export default function AIVisionContainer() {
   const { exerciseId } = useParams();
@@ -192,7 +193,7 @@ export default function AIVisionContainer() {
       if (frame) {
         try {
           const token = localStorage.getItem('token');
-          const res = await fetch(`http://localhost:5000/api/ai/exercises/${exerciseId}/analyze`, {
+          const res = await fetch(`${API_BASE_URL}/api/ai/exercises/${exerciseId}/analyze`, {
             method: 'POST',
             headers: { 
               'Content-Type': 'application/json',
@@ -254,7 +255,7 @@ export default function AIVisionContainer() {
         return;
       }
 
-      const res = await fetch('http://localhost:5000/api/workouts/sessions', {
+      const res = await fetch(`${API_BASE_URL}/api/workouts/sessions`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',

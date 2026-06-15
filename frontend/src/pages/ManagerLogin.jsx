@@ -2,6 +2,7 @@ import React from 'react';
 
 import { Shield } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { API_BASE_URL } from '../config';
 
 export default function ManagerLogin() {
   
@@ -15,7 +16,7 @@ export default function ManagerLogin() {
       const email = e.target[0].value;
       const password = e.target[1].value;
       
-      const res = await fetch('http://localhost:5000/api/auth/manager-login', {
+      const res = await fetch(`${API_BASE_URL}/api/auth/manager-login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
