@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
-import { Activity, Dumbbell, History } from 'lucide-react';
+import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer } from 'recharts';
+import { Activity, Dumbbell, History, Sun, Moon } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { ThemeContext } from '../context/ThemeContext';
+import { API_BASE_URL } from '../config';
 
 const mockData = [
   { subject: 'Speed', A: 120, fullMark: 150 },
@@ -33,6 +35,7 @@ const itemVariants = {
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { theme, toggleTheme } = useContext(ThemeContext);
   const [stats, setStats] = React.useState({
     totalWorkouts: 0,
     totalReps: 0,
@@ -50,7 +53,7 @@ export default function Dashboard() {
           return;
         }
 
-        const res = await fetch('http://localhost:5000/api/workouts/summary/me', {
+        const res = await fetch(`${API_BASE_URL}/api/workouts/summary/me`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
 
@@ -118,7 +121,7 @@ export default function Dashboard() {
       variants={containerVariants}
       initial="hidden"
       animate="visible"
-      className="py-10 relative w-full"
+      className="py-10 px-4 md:px-8 max-w-6xl mx-auto relative w-full"
     >
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-96 bg-accent/5 rounded-full blur-[100px] pointer-events-none" />
 
@@ -128,6 +131,13 @@ export default function Dashboard() {
           <p className="text-gray-400 mt-2">Welcome back, Athlete</p>
         </div>
         <div className="flex items-center gap-4 self-start sm:self-auto">
+          <button 
+            onClick={toggleTheme}
+            className="p-3 bg-transparent text-gray-400 hover:text-accent transition-colors flex items-center justify-center rounded-xl"
+            title="Toggle Theme"
+          >
+            {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+          </button>
           <button 
             onClick={() => {
               localStorage.removeItem('token');

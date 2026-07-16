@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Activity } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { API_BASE_URL } from '../config';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -25,7 +26,7 @@ export default function Login() {
         ? { name, email, password, adminToken, gymName }
         : { email, password };
 
-      const res = await fetch(`http://localhost:5000/api/auth/${endpoint}`, {
+      const res = await fetch(`${API_BASE_URL}/api/auth/${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(bodyPayload)
@@ -54,7 +55,7 @@ export default function Login() {
     <div className="flex flex-col items-center justify-center min-h-screen p-4 relative overflow-hidden bg-background">
       {/* Background glowing orbs */}
       <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-accent/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-1/4 right-1/4 w-[30rem] h-[30rem] bg-accent/5 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-1/4 right-1/4 w-120 h-120 bg-accent/5 rounded-full blur-3xl pointer-events-none" />
 
       <motion.div
         initial={{ opacity: 0, y: -20 }}

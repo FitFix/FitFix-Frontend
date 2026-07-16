@@ -1,11 +1,14 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback, useContext } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { exerciseRules } from '../engine/ExerciseLogic';
-import { Activity, X, Camera, Video, VideoOff } from 'lucide-react';
+import { X, Camera, Video, VideoOff, Sun, Moon } from 'lucide-react';
+import { ThemeContext } from '../context/ThemeContext';
+import { API_BASE_URL } from '../config';
 
 export default function AIVisionContainer() {
   const { exerciseId } = useParams();
   const navigate = useNavigate();
+  const { theme, toggleTheme } = useContext(ThemeContext);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
@@ -16,7 +19,7 @@ export default function AIVisionContainer() {
   const [formStatus, setFormStatus] = useState({ message: 'Click "Start Camera" to begin', color: 'gray' });
   const [showSkeleton, setShowSkeleton] = useState(true);
   const [isCameraActive, setIsCameraActive] = useState(false);
-  const [repState, setRepState] = useState('down');
+  const [, setRepState] = useState('down');
 
   const captureFrame = () => {
     const video = videoRef.current;
@@ -59,117 +62,7 @@ export default function AIVisionContainer() {
     setFormStatus({ message: 'Camera stopped', color: 'gray' });
   };
 
-  useEffect(() => {
-    if (!exercise) {
-      navigate('/exercises');
-      return;
-    }
-
-    let active = true;
-
-    const runInferenceLoop = async () => {
-      if (!active || !isCameraActive) return;
-
-      const frame = captureFrame();
-      if (frame) {
-        try {
-          const token = localStorage.getItem('token');
-          const res = await fetch(`http://localhost:5000/api/ai/exercises/${exerciseId}/analyze`, {
-            method: 'POST',
-            headers: { 
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ image: frame })
-          });
-
-          if (res.ok && active && isCameraActive) {
-            const data = await res.json();
-            if (data.success && data.keypoints) {
-              processKeypoints(data.keypoints, data.angle, data.feedback);
-              if (showSkeleton) drawSkeleton(data.keypoints);
-            } else {
-              setFormStatus(data.feedback || { message: 'Position yourself in frame', color: 'yellow' });
-            }
-          }
-        } catch (err) {
-          console.error("Inference loop error:", err);
-        }
-      }
-
-      // Schedule next frame immediately (no setTimeout delay) for max real-time FPS
-      if (active && isCameraActive) {
-        requestAnimationFrame(runInferenceLoop);
-      }
-    };
-
-    if (isCameraActive) {
-      runInferenceLoop();
-    }
-
-    return () => {
-      active = false;
-    };
-  }, [exerciseId, isCameraActive, showSkeleton]);
-
-  // Clean up camera stream tracks ONLY on unmount
-  useEffect(() => {
-    return () => {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
-      }
-    };
-  }, []);
-
-  const handleFinishWorkout = async () => {
-    stopCamera();
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        navigate('/login');
-        return;
-      }
-
-      const res = await fetch('http://localhost:5000/api/workouts/sessions', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          exerciseId,
-          reps,
-          maxDepthAngle: currentAngle,
-          avgSpeed: 1.0
-        })
-      });
-
-      if (res.ok) {
-        navigate('/dashboard');
-      } else {
-        console.error('Failed to save workout session');
-        navigate('/dashboard');
-      }
-    } catch (err) {
-      console.error('Error saving session:', err);
-      navigate('/dashboard');
-    }
-  };
-
-  const processKeypoints = (keypoints, angle, feedback) => {
-    setCurrentAngle(angle);
-    setFormStatus(feedback);
-
-    const { min, max } = exercise.thresholds;
-    if (angle < min + 20 && repState === 'down') {
-      setRepState('up');
-    } else if (angle > max - 20 && repState === 'up') {
-      setReps(r => r + 1);
-      setRepState('down');
-    }
-  };
-
-  const drawSkeleton = (keypoints) => {
+  const drawSkeleton = useCallback((keypoints) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -204,7 +97,191 @@ export default function AIVisionContainer() {
         ctx.fill();
       }
     });
+  }, []);
+
+  const drawHandSkeleton = useCallback((hands) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    ctx.strokeStyle = '#00E5FF';
+    ctx.lineWidth = 3;
+
+    hands.forEach(hand => {
+      const lms = hand.landmarks;
+      if (!lms || lms.length < 21) return;
+
+      const fingers = [
+        [0, 1, 2, 3, 4],       // Thumb
+        [0, 5, 6, 7, 8],       // Index
+        [9, 10, 11, 12],       // Middle
+        [13, 14, 15, 16],      // Ring
+        [17, 18, 19, 20]       // Pinky
+      ];
+
+      // Connect finger joints
+      fingers.forEach(finger => {
+        for (let i = 0; i < finger.length - 1; i++) {
+          const p1 = lms[finger[i]];
+          const p2 = lms[finger[i+1]];
+          ctx.beginPath();
+          ctx.moveTo(p1.x * canvas.width, p1.y * canvas.height);
+          ctx.lineTo(p2.x * canvas.width, p2.y * canvas.height);
+          ctx.stroke();
+        }
+      });
+
+      // Connect bases
+      const bases = [0, 5, 9, 13, 17];
+      for (let i = 0; i < bases.length - 1; i++) {
+        const p1 = lms[bases[i]];
+        const p2 = lms[bases[i+1]];
+        ctx.beginPath();
+        ctx.moveTo(p1.x * canvas.width, p1.y * canvas.height);
+        ctx.lineTo(p2.x * canvas.width, p2.y * canvas.height);
+        ctx.stroke();
+      }
+      // Connect wrist to pinky base
+      const pWrist = lms[0];
+      const pPinkyBase = lms[17];
+      ctx.beginPath();
+      ctx.moveTo(pWrist.x * canvas.width, pWrist.y * canvas.height);
+      ctx.lineTo(pPinkyBase.x * canvas.width, pPinkyBase.y * canvas.height);
+      ctx.stroke();
+
+      // Draw landmark points
+      lms.forEach(lm => {
+        ctx.fillStyle = '#FFFFFF';
+        ctx.beginPath();
+        ctx.arc(lm.x * canvas.width, lm.y * canvas.height, 4, 0, 2 * Math.PI);
+        ctx.fill();
+      });
+    });
+  }, []);
+
+  const processKeypoints = useCallback((keypoints, angle, feedback) => {
+    setCurrentAngle(angle);
+    setFormStatus(feedback);
+
+    if (exercise && exercise.thresholds) {
+      const { min, max } = exercise.thresholds;
+      setRepState(currentRepState => {
+        if (angle < min + 20 && currentRepState === 'down') {
+          return 'up';
+        } else if (angle > max - 20 && currentRepState === 'up') {
+          setReps(r => r + 1);
+          return 'down';
+        }
+        return currentRepState;
+      });
+    }
+  }, [exercise]);
+
+  useEffect(() => {
+    if (!exercise) {
+      navigate('/exercises');
+      return;
+    }
+
+    let active = true;
+
+    const runInferenceLoop = async () => {
+      if (!active || !isCameraActive) return;
+
+      const frame = captureFrame();
+      if (frame) {
+        try {
+          const token = localStorage.getItem('token');
+          const res = await fetch(`${API_BASE_URL}/api/ai/exercises/${exerciseId}/analyze`, {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ image: frame })
+          });
+
+          if (res.ok && active && isCameraActive) {
+            const data = await res.json();
+            if (exerciseId === 'hand_detection') {
+              setCurrentAngle(data.count);
+              setFormStatus(data.feedback);
+              if (showSkeleton) drawHandSkeleton(data.hands || []);
+            } else {
+              if (data.success && data.keypoints) {
+                processKeypoints(data.keypoints, data.angle, data.feedback);
+                if (showSkeleton) drawSkeleton(data.keypoints);
+              } else {
+                setFormStatus(data.feedback || { message: 'Position yourself in frame', color: 'yellow' });
+              }
+            }
+          }
+        } catch (err) {
+          console.error("Inference loop error:", err);
+        }
+      }
+
+      // Schedule next frame immediately (no setTimeout delay) for max real-time FPS
+      if (active && isCameraActive) {
+        requestAnimationFrame(runInferenceLoop);
+      }
+    };
+
+    if (isCameraActive) {
+      runInferenceLoop();
+    }
+
+    return () => {
+      active = false;
+    };
+  }, [exercise, exerciseId, navigate, isCameraActive, showSkeleton, processKeypoints, drawSkeleton, drawHandSkeleton]);
+
+  // Clean up camera stream tracks ONLY on unmount
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, []);
+
+  const handleFinishWorkout = async () => {
+    stopCamera();
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        navigate('/login');
+        return;
+      }
+
+      const res = await fetch(`${API_BASE_URL}/api/workouts/sessions`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          exerciseId,
+          reps,
+          maxDepthAngle: currentAngle,
+          avgSpeed: 1.0
+        })
+      });
+
+      if (res.ok) {
+        navigate('/dashboard');
+      } else {
+        console.error('Failed to save workout session');
+        navigate('/dashboard');
+      }
+    } catch (err) {
+      console.error('Error saving session:', err);
+      navigate('/dashboard');
+    }
   };
+
+
 
   if (!exercise) return null;
 
@@ -215,6 +292,7 @@ export default function AIVisionContainer() {
         autoPlay 
         playsInline 
         muted 
+        style={{ transform: 'scaleX(-1)' }}
         className={`absolute inset-0 w-full h-full object-cover opacity-80 ${!isCameraActive ? 'hidden' : ''}`}
       />
       
@@ -240,10 +318,11 @@ export default function AIVisionContainer() {
         ref={canvasRef} 
         width={640} 
         height={480} 
+        style={{ transform: 'scaleX(-1)' }}
         className={`absolute inset-0 w-full h-full object-cover ${(!showSkeleton || !isCameraActive) && 'hidden'}`}
       />
 
-      <div className="absolute top-0 left-0 right-0 p-4 flex justify-between items-center bg-gradient-to-b from-black/80 to-transparent z-10">
+      <div className="absolute top-0 left-0 right-0 p-4 flex justify-between items-center bg-linear-to-b from-black/80 to-transparent z-10">
         <button 
           onClick={() => {
             stopCamera();
@@ -256,6 +335,13 @@ export default function AIVisionContainer() {
         <h2 className="text-xl font-bold tracking-wider">{exercise.name}</h2>
         
         <div className="flex gap-2">
+          <button 
+            onClick={toggleTheme}
+            className="p-2 bg-gray-900/60 rounded-full text-white backdrop-blur-md hover:text-accent transition-colors flex items-center justify-center"
+            title="Toggle Theme"
+          >
+            {theme === 'dark' ? <Sun size={24} /> : <Moon size={24} />}
+          </button>
           {isCameraActive && (
             <>
               <button 
@@ -278,25 +364,27 @@ export default function AIVisionContainer() {
       </div>
 
       {isCameraActive && (
-        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 w-11/12 max-w-md bg-black/60 backdrop-blur-lg border border-gray-700 p-6 rounded-3xl z-10">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="text-center p-3 bg-gray-800/50 rounded-2xl">
-              <p className="text-gray-400 text-sm font-medium mb-1">REPS</p>
-              <p className="text-5xl font-bold text-white">{reps}</p>
-            </div>
-            <div className="text-center p-3 bg-gray-800/50 rounded-2xl">
-              <p className="text-gray-400 text-sm font-medium mb-1">ANGLE</p>
-              <p className="text-5xl font-bold text-accent">{currentAngle}°</p>
+        <div className="absolute bottom-6 right-6 w-72 bg-black/75 backdrop-blur-md border border-gray-800 p-4 rounded-2xl z-10 flex flex-col gap-3">
+          <div className="flex gap-2">
+            {exerciseId !== 'hand_detection' && (
+              <div className="flex-1 text-center p-2 bg-gray-900/50 rounded-xl border border-gray-800">
+                <p className="text-gray-400 text-xs font-semibold mb-0.5">REPS</p>
+                <p className="text-3xl font-black text-white">{reps}</p>
+              </div>
+            )}
+            <div className="flex-1 text-center p-2 bg-gray-900/50 rounded-xl border border-gray-800">
+              <p className="text-gray-400 text-xs font-semibold mb-0.5">{exerciseId === 'hand_detection' ? 'HANDS' : 'ANGLE'}</p>
+              <p className="text-3xl font-black text-accent">{currentAngle}{exerciseId === 'hand_detection' ? '' : '°'}</p>
             </div>
           </div>
           
-          <div className="mt-4 p-4 rounded-2xl text-center font-bold text-lg border border-gray-700 shadow-inner" style={{ backgroundColor: `${formStatus.color}20`, color: formStatus.color, borderColor: formStatus.color }}>
+          <div className="p-2.5 rounded-xl text-center font-bold text-sm border shadow-inner" style={{ backgroundColor: `${formStatus.color}15`, color: formStatus.color, borderColor: `${formStatus.color}40` }}>
             {formStatus.message}
           </div>
 
           <button 
             onClick={handleFinishWorkout}
-            className="mt-4 w-full py-3 bg-accent text-black font-bold rounded-2xl hover:bg-accent/90 transition-all text-center"
+            className="w-full py-2.5 bg-accent hover:bg-accent/90 text-black font-extrabold rounded-xl transition-all text-sm text-center shadow-lg shadow-accent/10 hover:scale-[1.02]"
           >
             Finish & Save Session
           </button>

@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+package yolo;
+
+service YoloPose {
+  rpc Predict (PredictRequest) returns (PredictResponse);
+  rpc DetectHands (HandRequest) returns (HandResponse);
+}
+
+message PredictRequest {
+  string image = 1; // Base64 encoded image string
+}
+
+message Keypoint {
+  float x = 1;
+  float y = 2;
+  float score = 3;
+  string name = 4;
+}
+
+message PredictResponse {
+  repeated Keypoint keypoints = 1;
+}
+
+message HandRequest {
+  string image = 1; // Base64 encoded image string
+}
+
+message Landmark {
+  float x = 1;
+  float y = 2;
+  float z = 3;
+}
+
+message Hand {
+  repeated Landmark landmarks = 1; // 21 landmarks
+  string handedness = 2; // "Left" or "Right"
+  float score = 3;
+}
+
+message HandResponse {
+  repeated Hand hands = 1;
+  int32 count = 2;
+}
