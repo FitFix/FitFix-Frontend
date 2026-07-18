@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Activity } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { API_BASE_URL } from '../config';
@@ -61,10 +61,17 @@ export default function Login() {
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="flex items-center gap-3 mb-8 z-10"
+        className="mb-8 z-10"
       >
-        <Activity size={48} className="text-accent" />
-        <h1 className="text-4xl font-bold tracking-tight">FitFix<span className="text-accent text-glow">AI</span></h1>
+        <Link
+          to="/"
+          aria-label="Back to FitFix home page"
+          title="Back to home"
+          className="flex items-center gap-3 transition-opacity hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent rounded-lg"
+        >
+          <Activity size={48} className="text-accent" />
+          <h1 className="text-4xl font-bold tracking-tight">FitFix<span className="text-accent text-glow">AI</span></h1>
+        </Link>
       </motion.div>
 
       <motion.div

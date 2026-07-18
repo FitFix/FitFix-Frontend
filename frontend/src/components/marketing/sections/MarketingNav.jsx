@@ -18,11 +18,28 @@ const GLASS_PILL =
   'glass shadow-[inset_0_0.5px_0_rgba(255,255,255,0.10),0_10px_30px_rgba(0,0,0,0.35)]';
 
 function BrandLockup() {
+  // On the landing page a same-route Link click is a no-op in React Router,
+  // so the lockup explicitly scrolls back to the top (smooth unless the user
+  // prefers reduced motion).
+  const handleClick = (e) => {
+    if (window.location.pathname === '/') {
+      e.preventDefault();
+      const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      window.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' });
+      // Some environments silently ignore smooth scrolling — guarantee arrival.
+      window.setTimeout(() => {
+        if (window.scrollY > 4) window.scrollTo(0, 0);
+      }, 900);
+    }
+  };
+
   return (
     <Link
       to="/"
-      aria-label="FitFix home"
-      className="flex items-center gap-2 shrink-0 rounded-full"
+      onClick={handleClick}
+      aria-label="FitFix home — back to top"
+      title="Back to top"
+      className="flex items-center gap-2 shrink-0 rounded-full transition-opacity hover:opacity-80"
     >
       <img src={logo} alt="" className="h-9 w-auto" />
       <span className="text-lg font-extrabold tracking-tight text-text">
