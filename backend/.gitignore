@@ -27,3 +27,10 @@ Thumbs.db
 # Models
 *.pt
 *.onnx
+
+# Python
+.venv/
+__pycache__/
+
+# MediaPipe models
+*.task

@@ -50,6 +50,87 @@ class PushUp extends Exercise {
   }
 }
 
+class Lunge extends Exercise {
+  constructor() {
+    super('lunge', 'Lunges', 'Leg strength and balance.', ['hip', 'knee', 'ankle'], { min: 80, max: 170 });
+  }
+
+  getFeedback(angle) {
+    if (angle > 160) return { message: 'Good Form', color: '#00E5FF' };
+    if (angle < 90) return { message: 'Great Depth!', color: 'green' };
+    return { message: 'Lower your back knee', color: 'yellow' };
+  }
+}
+
+class Plank extends Exercise {
+  constructor() {
+    super('plank', 'Plank', 'Core stabilization.', ['shoulder', 'hip', 'ankle'], { min: 160, max: 180 });
+  }
+
+  getFeedback(angle) {
+    if (angle < 160) return { message: 'Straighten your back!', color: 'red' };
+    return { message: 'Hold it!', color: 'green' };
+  }
+}
+
+class SitUp extends Exercise {
+  constructor() {
+    super('situp', 'Sit-ups', 'Core strength builder.', ['shoulder', 'hip', 'knee'], { min: 45, max: 140 });
+  }
+
+  getFeedback(angle) {
+    if (angle < 60) return { message: 'Good flex!', color: 'green' };
+    return { message: 'Keep going!', color: 'yellow' };
+  }
+}
+
+class ShoulderPress extends Exercise {
+  constructor() {
+    super('shoulder_press', 'Shoulder Press', 'Overhead shoulder strength.', ['shoulder', 'elbow', 'wrist'], { min: 60, max: 170 });
+  }
+
+  getFeedback(angle) {
+    if (angle > 160) return { message: 'Good Extension', color: '#00E5FF' };
+    if (angle < 80) return { message: 'Good Depth', color: 'green' };
+    return { message: 'Push higher', color: 'yellow' };
+  }
+}
+
+class Deadlift extends Exercise {
+  constructor() {
+    super('deadlift', 'Deadlift', 'Posterior chain builder.', ['shoulder', 'hip', 'knee'], { min: 80, max: 180 });
+  }
+
+  getFeedback(angle) {
+    if (angle > 170) return { message: 'Lockout', color: 'green' };
+    if (angle < 100) return { message: 'Keep back straight', color: 'yellow' };
+    return { message: 'Good Form', color: '#00E5FF' };
+  }
+}
+
+class PullUp extends Exercise {
+  constructor() {
+    super('pullup', 'Pull-ups', 'Back and bicep builder.', ['shoulder', 'elbow', 'wrist'], { min: 45, max: 160 });
+  }
+
+  getFeedback(angle) {
+    if (angle < 60) return { message: 'Chin over bar!', color: 'green' };
+    if (angle > 150) return { message: 'Full extension', color: '#00E5FF' };
+    return { message: 'Pull higher', color: 'yellow' };
+  }
+}
+
+class LateralRaise extends Exercise {
+  constructor() {
+    super('lateral_raise', 'Lateral Raises', 'Shoulder isolation.', ['shoulder', 'elbow', 'wrist'], { min: 20, max: 90 });
+  }
+
+  getFeedback(angle) {
+    if (angle > 80) return { message: 'Good height', color: 'green' };
+    return { message: 'Raise higher', color: 'yellow' };
+  }
+}
+
 class HandDetection extends Exercise {
   constructor() {
     super('hand_detection', 'Hand Tracking', 'Track 21 hand landmarks and count hands in the frame.', ['hand_wrist', 'fingers'], { min: 0, max: 2 });
@@ -66,6 +147,13 @@ const exerciseRegistry = {
   'bicep_curl': new BicepCurl(),
   'squat': new Squat(),
   'pushup': new PushUp(),
+  'lunge': new Lunge(),
+  'plank': new Plank(),
+  'situp': new SitUp(),
+  'shoulder_press': new ShoulderPress(),
+  'deadlift': new Deadlift(),
+  'pullup': new PullUp(),
+  'lateral_raise': new LateralRaise(),
   'hand_detection': new HandDetection()
 };
 

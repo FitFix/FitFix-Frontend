@@ -67,6 +67,36 @@ if HAS_MEDIAPIPE:
 else:
     print("Warning: Missing python dependency mediapipe. Please install it.")
 
+# Initialize MediaPipe Pose Landmarker
+model_path_pose = os.path.join(os.path.dirname(__file__), "pose_landmarker_lite.task")
+pose_landmarker = None
+
+if HAS_MEDIAPIPE:
+    if os.path.exists(model_path_pose):
+        try:
+            pose_base_options = python.BaseOptions(model_asset_path=model_path_pose)
+            pose_options = vision.PoseLandmarkerOptions(
+                base_options=pose_base_options,
+                num_poses=1
+            )
+            pose_landmarker = vision.PoseLandmarker.create_from_options(pose_options)
+            print(f"MediaPipe Pose Landmarker loaded successfully from {model_path_pose}")
+        except Exception as e:
+            print(f"Error loading MediaPipe Pose Landmarker: {e}")
+    else:
+        print(f"MediaPipe Pose Landmarker task file not found at {model_path_pose}")
+
+# MediaPipe BlazePose 33-landmark index -> COCO-style joint names the app expects
+POSE_LANDMARK_MAP = {
+    0: 'nose',
+    11: 'left_shoulder', 12: 'right_shoulder',
+    13: 'left_elbow', 14: 'right_elbow',
+    15: 'left_wrist', 16: 'right_wrist',
+    23: 'left_hip', 24: 'right_hip',
+    25: 'left_knee', 26: 'right_knee',
+    27: 'left_ankle', 28: 'right_ankle',
+}
+
 COCO_NAMES = [
     'nose', 'left_eye', 'right_eye', 'left_ear', 'right_ear',
     'left_shoulder', 'right_shoulder', 'left_elbow', 'right_elbow',
@@ -76,9 +106,9 @@ COCO_NAMES = [
 
 class YoloPoseServicer(yolo_pb2_grpc.YoloPoseServicer):
     def Predict(self, request, context):
-        if not HAS_ULTRALYTICS or model is None:
+        if not HAS_MEDIAPIPE or pose_landmarker is None:
             context.set_code(grpc.StatusCode.UNAVAILABLE)
-            context.set_details("YOLO Model is not loaded or ultralytics is missing")
+            context.set_details("MediaPipe Pose Landmarker is not loaded or mediapipe is missing")
             return yolo_pb2.PredictResponse(keypoints=[])
 
         try:
@@ -86,37 +116,43 @@ class YoloPoseServicer(yolo_pb2_grpc.YoloPoseServicer):
             encoded = request.image
             if "," in encoded:
                 encoded = encoded.split(",", 1)[1]
-            
+
             image_bytes = base64.b64decode(encoded)
             image = Image.open(io.BytesIO(image_bytes))
-            
+
+            # Convert to RGB numpy array for MediaPipe
+            image_rgb = image.convert("RGB")
+            image_np = np.array(image_rgb)
+            height, width = image_np.shape[:2]
+            mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=image_np)
+
             # Perform Pose Estimation
-            results = model(image, imgsz=320, verbose=False)
-            
-            if not results or len(results) == 0 or results[0].keypoints is None:
+            detection_result = pose_landmarker.detect(mp_image)
+
+            if not detection_result or not detection_result.pose_landmarks:
                 return yolo_pb2.PredictResponse(keypoints=[])
-            
-            kp_data = results[0].keypoints
-            xy = kp_data.xy.cpu().numpy()
-            conf = kp_data.conf.cpu().numpy() if kp_data.conf is not None else np.ones((xy.shape[0], xy.shape[1]))
-            
-            if len(xy) == 0:
-                return yolo_pb2.PredictResponse(keypoints=[])
-            
-            person_xy = xy[0]
-            person_conf = conf[0]
-            
+
+            # First detected person only
+            landmarks = detection_result.pose_landmarks[0]
+
             output_kps = []
-            for i in range(min(len(person_xy), len(COCO_NAMES))):
+            for idx, name in POSE_LANDMARK_MAP.items():
+                if idx >= len(landmarks):
+                    continue
+                lm = landmarks[idx]
+                # MediaPipe landmarks are normalized (0..1); convert to input-frame pixels
+                score = getattr(lm, "visibility", None)
+                if score is None:
+                    score = getattr(lm, "presence", 1.0)
                 output_kps.append(yolo_pb2.Keypoint(
-                    x=float(person_xy[i][0]),
-                    y=float(person_xy[i][1]),
-                    score=float(person_conf[i]),
-                    name=COCO_NAMES[i]
+                    x=float(lm.x * width),
+                    y=float(lm.y * height),
+                    score=float(score),
+                    name=name
                 ))
-            
+
             return yolo_pb2.PredictResponse(keypoints=output_kps)
-            
+
         except Exception as e:
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(e))
