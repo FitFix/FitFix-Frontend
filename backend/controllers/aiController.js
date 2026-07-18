@@ -127,21 +127,14 @@ class AIController {
       }
 
       const findPoint = (name) => keypoints.find(k => k.name === name);
-      let a, b, c;
 
-      if (exercise.id === 'bicep_curl') {
-        a = findPoint('left_shoulder') || findPoint('right_shoulder');
-        b = findPoint('left_elbow') || findPoint('right_elbow');
-        c = findPoint('left_wrist') || findPoint('right_wrist');
-      } else if (exercise.id === 'squat') {
-        a = findPoint('left_hip') || findPoint('right_hip');
-        b = findPoint('left_knee') || findPoint('right_knee');
-        c = findPoint('left_ankle') || findPoint('right_ankle');
-      } else if (exercise.id === 'pushup') {
-        a = findPoint('left_shoulder') || findPoint('right_shoulder');
-        b = findPoint('left_elbow') || findPoint('right_elbow');
-        c = findPoint('left_wrist') || findPoint('right_wrist');
-      }
+      // Pick the joint triplet from the exercise's declared targetJoints,
+      // using one consistent side (left or right) — whichever is better detected.
+      const sidePoints = (side) => exercise.targetJoints.map(j => findPoint(`${side}_${j}`));
+      const sideScore = (pts) => pts.every(p => p) ? pts.reduce((sum, p) => sum + p.score, 0) : -1;
+      const leftPts = sidePoints('left');
+      const rightPts = sidePoints('right');
+      const [a, b, c] = sideScore(leftPts) >= sideScore(rightPts) ? leftPts : rightPts;
 
       let angle = 0;
       let feedback = { message: 'Position yourself in frame', color: 'yellow' };

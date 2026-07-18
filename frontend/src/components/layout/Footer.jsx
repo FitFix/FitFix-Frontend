@@ -2,32 +2,31 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import logo from '../../assets/finallogo.png';
 
+// Links either anchor within the landing page (href) or route via
+// react-router (path). Only real anchors/routes — nothing dead-ends.
 const footerColumns = [
   {
     title: 'Product',
     links: [
-      { name: 'Workout', path: '/exercises' },
-      { name: 'Dashboard', path: '/dashboard' },
-      { name: 'Pricing', path: '/pricing' },
-      { name: 'Blogs', path: '/blogs' }
+      { name: 'Features', href: '#features' },
+      { name: 'How it works', href: '#how-it-works' },
+      { name: 'Pricing', href: '#pricing' },
+      { name: 'FAQ', href: '#faq' }
     ]
   },
   {
     title: 'Resources',
     links: [
-      { name: 'Documentation', path: '/docs' },
-      { name: 'Support', path: '/support' },
-      { name: 'API Reference', path: '/api' },
-      { name: 'Status', path: '/status' }
+      { name: 'Book a walkthrough', href: '#walkthrough' },
+      { name: 'Pricing plans', path: '/pricing' }
     ]
   },
   {
     title: 'Company',
     links: [
-      { name: 'About', path: '/about' },
-      { name: 'Careers', path: '/careers' },
-      { name: 'Privacy Policy', path: '/privacy' },
-      { name: 'Terms of Service', path: '/terms' }
+      { name: 'Login', path: '/login' },
+      { name: 'fitfix@gmail.com', href: 'mailto:fitfix@gmail.com' },
+      { name: '+91 81468 30484', href: 'tel:+918146830484' }
     ]
   }
 ];
@@ -72,6 +71,9 @@ const socialLinks = [
 ];
 
 const Footer = () => {
+  const linkClassName =
+    'text-[var(--text-muted)] hover:text-accent transition-colors duration-200 text-sm font-sans';
+
   const renderedColumns = [];
 
   for (let i = 0; i < footerColumns.length; i++) {
@@ -82,19 +84,22 @@ const Footer = () => {
       const link = col.links[j];
       renderedLinks.push(
         <li key={j}>
-          <Link
-            to={link.path}
-            className="text-gray-400 hover:text-accent transition-colors duration-200 text-sm font-sans"
-          >
-            {link.name}
-          </Link>
+          {link.path ? (
+            <Link to={link.path} className={linkClassName}>
+              {link.name}
+            </Link>
+          ) : (
+            <a href={link.href} className={linkClassName}>
+              {link.name}
+            </a>
+          )}
         </li>
       );
     }
 
     renderedColumns.push(
       <div key={i} className="flex flex-col gap-4">
-        <h4 className="text-white font-extrabold tracking-widest text-xs font-sans uppercase">{col.title}</h4>
+        <h4 className="text-text font-extrabold tracking-widest text-xs font-sans uppercase">{col.title}</h4>
         <ul className="list-none p-0 m-0 flex flex-col gap-3">
           {renderedLinks}
         </ul>
@@ -110,7 +115,7 @@ const Footer = () => {
         key={i}
         href={s.path}
         aria-label={s.name}
-        className="w-9 h-9 rounded-full border border-white/10 flex items-center justify-center text-gray-400 hover:text-accent hover:border-accent transition-all duration-200"
+        className="w-9 h-9 rounded-full border border-white/10 flex items-center justify-center text-[var(--text-muted)] hover:text-accent hover:border-accent transition-all duration-200"
       >
         {s.icon}
       </a>
@@ -134,8 +139,8 @@ const Footer = () => {
                 <span style={{ fontSize: '7px', fontWeight: 800, letterSpacing: '3px', color: '#8892b0', textTransform: 'uppercase', marginTop: '3px' }}>Pose Intelligence</span>
               </div>
             </div>
-            <p className="text-gray-400 text-sm font-sans leading-relaxed">
-              Pioneering AI-assisted fitness through edge-deployed biomechanics for commercial gyms.
+            <p className="text-[var(--text-muted)] text-sm font-sans leading-relaxed">
+              Camera-based form intelligence for commercial gyms. Video never leaves the building &mdash; only the numbers do.
             </p>
             <div className="flex items-center gap-3 mt-2">
               {renderedSocials}
@@ -148,8 +153,8 @@ const Footer = () => {
         </div>
 
         <div className="pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-gray-500 text-xs font-sans">© 2026 FitFix Inc. All rights reserved.</p>
-          <p className="text-gray-600 text-xs font-sans">Built for Commercial Floors · Powered by Edge AI</p>
+          <p className="text-[var(--text-muted)] text-xs font-sans">© 2026 FitFix Inc. All rights reserved.</p>
+          <p className="text-[var(--text-muted)] text-xs font-sans opacity-80">Built for Commercial Floors · Powered by Edge AI</p>
         </div>
       </div>
     </footer>

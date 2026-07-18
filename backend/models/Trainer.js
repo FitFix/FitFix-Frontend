@@ -5,7 +5,7 @@ const trainerSchema = new mongoose.Schema({
   phone: { type: String, required: true, trim: true },
   salary: { type: Number, required: true, min: 0, default: 0 },
   gymId: { type: mongoose.Schema.Types.ObjectId, ref: 'Gym', required: true },
-  faceEncoding: { type: [Number], validate: [val => !val || val.length === 128, '{PATH} must be a 128-dimensional array'] },
+  faceEncoding: { type: [Number], default: undefined, validate: [val => !val || val.length === 0 || val.length === 128, '{PATH} must be a 128-dimensional array'] },
   attendanceLog: [{ type: Date }],
   createdAt: { type: Date, default: Date.now }
 });
