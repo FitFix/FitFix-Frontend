@@ -1,23 +1,16 @@
-import { createContext, useState, useEffect } from 'react';
+import { createContext, useEffect } from 'react';
 
-export const ThemeContext = createContext();
+// Dark-only. Light mode was removed; the context stays so existing consumers
+// keep working, but theme is fixed to dark and toggling is a no-op.
+export const ThemeContext = createContext({ theme: 'dark', toggleTheme: () => {} });
 
 export const ThemeProvider = ({ children }) => {
-  const [theme, setTheme] = useState(() => {
-    return localStorage.getItem('theme') || 'dark';
-  });
-
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('theme', theme);
-  }, [theme]);
-
-  const toggleTheme = () => {
-    setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
-  };
+    document.documentElement.setAttribute('data-theme', 'dark');
+  }, []);
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme }}>
+    <ThemeContext.Provider value={{ theme: 'dark', toggleTheme: () => {} }}>
       {children}
     </ThemeContext.Provider>
   );

@@ -1,14 +1,12 @@
-import { useEffect, useRef, useState, useCallback, useContext } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { exerciseRules } from '../engine/ExerciseLogic';
-import { X, Camera, Video, VideoOff, Sun, Moon } from 'lucide-react';
-import { ThemeContext } from '../context/ThemeContext';
+import { X, Camera, Video, VideoOff } from 'lucide-react';
 import { API_BASE_URL } from '../config';
 
 export default function AIVisionContainer() {
   const { exerciseId } = useParams();
   const navigate = useNavigate();
-  const { theme, toggleTheme } = useContext(ThemeContext);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
@@ -20,6 +18,9 @@ export default function AIVisionContainer() {
   const [showSkeleton, setShowSkeleton] = useState(true);
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [, setRepState] = useState('down');
+  const [holdSeconds, setHoldSeconds] = useState(0);
+  const holdRef = useRef(null);
+  const isHold = exercise && exercise.type === 'hold';
 
   const captureFrame = () => {
     const video = videoRef.current;
@@ -59,6 +60,7 @@ export default function AIVisionContainer() {
       videoRef.current.srcObject = null;
     }
     setIsCameraActive(false);
+    holdRef.current = null; // reset hold timer so a paused gap isn't counted
     setFormStatus({ message: 'Camera stopped', color: 'gray' });
   };
 
@@ -163,8 +165,23 @@ export default function AIVisionContainer() {
   const processKeypoints = useCallback((keypoints, angle, feedback) => {
     setCurrentAngle(angle);
     setFormStatus(feedback);
+    if (!exercise) return;
 
-    if (exercise && exercise.thresholds) {
+    // Isometric holds (e.g. plank): accumulate seconds held with good form.
+    // No rep state machine — the angle barely changes, so counting reps here
+    // would produce spurious counts.
+    if (exercise.type === 'hold') {
+      const now = performance.now();
+      const goodForm = feedback && (feedback.color === 'green' || feedback.color === '#00E5FF');
+      if (goodForm && holdRef.current != null) {
+        setHoldSeconds(s => s + (now - holdRef.current) / 1000);
+      }
+      holdRef.current = now;
+      return;
+    }
+
+    // Rep exercises: hysteresis state machine on the primary angle.
+    if (exercise.thresholds) {
       const { min, max } = exercise.thresholds;
       setRepState(currentRepState => {
         if (angle < min + 20 && currentRepState === 'down') {
@@ -263,7 +280,7 @@ export default function AIVisionContainer() {
         },
         body: JSON.stringify({
           exerciseId,
-          reps,
+          reps: isHold ? Math.floor(holdSeconds) : reps,
           maxDepthAngle: currentAngle,
           avgSpeed: 1.0
         })
@@ -335,13 +352,6 @@ export default function AIVisionContainer() {
         <h2 className="text-xl font-bold tracking-wider">{exercise.name}</h2>
         
         <div className="flex gap-2">
-          <button 
-            onClick={toggleTheme}
-            className="p-2 bg-gray-900/60 rounded-full text-white backdrop-blur-md hover:text-accent transition-colors flex items-center justify-center"
-            title="Toggle Theme"
-          >
-            {theme === 'dark' ? <Sun size={24} /> : <Moon size={24} />}
-          </button>
           {isCameraActive && (
             <>
               <button 
@@ -366,12 +376,17 @@ export default function AIVisionContainer() {
       {isCameraActive && (
         <div className="absolute bottom-6 right-6 w-72 bg-black/75 backdrop-blur-md border border-gray-800 p-4 rounded-2xl z-10 flex flex-col gap-3">
           <div className="flex gap-2">
-            {exerciseId !== 'hand_detection' && (
+            {isHold ? (
+              <div className="flex-1 text-center p-2 bg-gray-900/50 rounded-xl border border-gray-800">
+                <p className="text-gray-400 text-xs font-semibold mb-0.5">HOLD</p>
+                <p className="text-3xl font-black text-white">{Math.floor(holdSeconds)}<span className="text-lg">s</span></p>
+              </div>
+            ) : exerciseId !== 'hand_detection' ? (
               <div className="flex-1 text-center p-2 bg-gray-900/50 rounded-xl border border-gray-800">
                 <p className="text-gray-400 text-xs font-semibold mb-0.5">REPS</p>
                 <p className="text-3xl font-black text-white">{reps}</p>
               </div>
-            )}
+            ) : null}
             <div className="flex-1 text-center p-2 bg-gray-900/50 rounded-xl border border-gray-800">
               <p className="text-gray-400 text-xs font-semibold mb-0.5">{exerciseId === 'hand_detection' ? 'HANDS' : 'ANGLE'}</p>
               <p className="text-3xl font-black text-accent">{currentAngle}{exerciseId === 'hand_detection' ? '' : '°'}</p>

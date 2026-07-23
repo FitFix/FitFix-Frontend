@@ -58,7 +58,8 @@ class AIController {
         name: ex.name,
         description: ex.description,
         targetJoints: ex.targetJoints,
-        thresholds: ex.thresholds
+        thresholds: ex.thresholds,
+        type: ex.type
       }));
       res.json(list);
     } catch (err) {
@@ -76,7 +77,8 @@ class AIController {
       name: exercise.name,
       description: exercise.description,
       targetJoints: exercise.targetJoints,
-      thresholds: exercise.thresholds
+      thresholds: exercise.thresholds,
+      type: exercise.type
     });
   }
 
@@ -134,14 +136,26 @@ class AIController {
       const sideScore = (pts) => pts.every(p => p) ? pts.reduce((sum, p) => sum + p.score, 0) : -1;
       const leftPts = sidePoints('left');
       const rightPts = sidePoints('right');
-      const [a, b, c] = sideScore(leftPts) >= sideScore(rightPts) ? leftPts : rightPts;
+      const useLeft = sideScore(leftPts) >= sideScore(rightPts);
+      const side = useLeft ? 'left' : 'right';
+      const [a, b, c] = useLeft ? leftPts : rightPts;
 
       let angle = 0;
       let feedback = { message: 'Position yourself in frame', color: 'yellow' };
 
       if (a && b && c && a.score > 0.4 && b.score > 0.4 && c.score > 0.4) {
         angle = Math.round(aiService.calculateAngle(a, b, c));
-        feedback = exercise.getFeedback(angle);
+        // ctx lets an exercise read secondary joint angles for richer form cues.
+        const ctx = {
+          side,
+          point: (name) => findPoint(name),
+          jointAngle: (n1, n2, n3) => {
+            const p1 = findPoint(n1), p2 = findPoint(n2), p3 = findPoint(n3);
+            if (!p1 || !p2 || !p3 || p1.score < 0.4 || p2.score < 0.4 || p3.score < 0.4) return 0;
+            return Math.round(aiService.calculateAngle(p1, p2, p3));
+          }
+        };
+        feedback = exercise.getFeedback(angle, ctx);
       } else {
         feedback = { message: 'Align joints with camera', color: 'yellow' };
       }

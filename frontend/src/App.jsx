@@ -9,6 +9,8 @@ const ExerciseSelector = lazy(() => import('./pages/ExerciseSelector'));
 const AIVisionContainer = lazy(() => import('./pages/AIVisionContainer'));
 const AdminGymPanel = lazy(() => import('./pages/AdminGymPanel'));
 const Pricing = lazy(() => import('./pages/Pricing'));
+const Onboarding = lazy(() => import('./pages/Onboarding'));
+const MyPlan = lazy(() => import('./pages/MyPlan'));
 
 function RouteFallback() {
   return (
@@ -28,6 +30,8 @@ function App() {
               <Route path="/" element={<Landing />} />
               <Route path="/login" element={<Login />} />
               <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/onboarding" element={<Onboarding />} />
+              <Route path="/plan" element={<MyPlan />} />
               <Route path="/exercises" element={<ExerciseSelector />} />
               <Route path="/workout/:exerciseId" element={<AIVisionContainer />} />
               <Route path="/admin" element={<AdminGymPanel />} />

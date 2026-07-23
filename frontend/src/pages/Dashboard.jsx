@@ -1,10 +1,11 @@
-import React, { useContext } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer } from 'recharts';
-import { Activity, Dumbbell, History, Sun, Moon } from 'lucide-react';
+import { Activity, Dumbbell, History, ClipboardList } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { ThemeContext } from '../context/ThemeContext';
 import { API_BASE_URL } from '../config';
+import { getProfile, getPlan } from '../api/plan';
+import TodayCard from '../components/TodayCard';
 
 const mockData = [
   { subject: 'Speed', A: 120, fullMark: 150 },
@@ -35,7 +36,6 @@ const itemVariants = {
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { theme, toggleTheme } = useContext(ThemeContext);
   const [stats, setStats] = React.useState({
     totalWorkouts: 0,
     totalReps: 0,
@@ -74,6 +74,24 @@ export default function Dashboard() {
 
     fetchSummary();
   }, [navigate]);
+
+  // First-login nudge: if the fitness profile isn't set up yet, take the user
+  // to onboarding once (skippable — a session flag prevents re-nagging).
+  React.useEffect(() => {
+    if (!localStorage.getItem('token')) return;
+    if (sessionStorage.getItem('onboardingSkipped')) return;
+    getProfile()
+      .then(({ profile }) => {
+        if (!profile || !profile.onboardingComplete) navigate('/onboarding');
+      })
+      .catch(() => {});
+  }, [navigate]);
+
+  // Today's schedule for the dashboard (same interactive card as My Plan)
+  const [todayPlan, setTodayPlan] = React.useState(null);
+  React.useEffect(() => {
+    getPlan().then(({ plan }) => { if (plan) setTodayPlan(plan); }).catch(() => {});
+  }, []);
 
   const sessionElements = stats.recentSessions && stats.recentSessions.length > 0 ? (
     stats.recentSessions.map((session, index) => {
@@ -131,14 +149,7 @@ export default function Dashboard() {
           <p className="text-gray-400 mt-2">Welcome back, Athlete</p>
         </div>
         <div className="flex items-center gap-4 self-start sm:self-auto">
-          <button 
-            onClick={toggleTheme}
-            className="p-3 bg-transparent text-gray-400 hover:text-accent transition-colors flex items-center justify-center rounded-xl"
-            title="Toggle Theme"
-          >
-            {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
-          </button>
-          <button 
+          <button
             onClick={() => {
               localStorage.removeItem('token');
               localStorage.removeItem('user');
@@ -148,22 +159,28 @@ export default function Dashboard() {
           >
             Logout
           </button>
-          <button 
-            onClick={() => navigate('/pricing')} 
-            className="px-6 py-3 bg-transparent text-white border border-gray-700 font-bold rounded-xl hover:bg-white/5 transition-colors"
+          <button
+            onClick={() => navigate('/plan')}
+            className="px-6 py-3 bg-transparent text-white border border-gray-700 font-bold rounded-xl hover:bg-white/5 transition-colors flex items-center gap-2"
           >
-            Upgrade Plan
+            <ClipboardList size={18} /> My Plan
           </button>
-          <motion.button 
+          <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            onClick={() => navigate('/exercises')} 
+            onClick={() => navigate('/exercises')}
             className="px-6 py-3 bg-accent text-black font-bold rounded-xl glow-accent-hover transition-all"
           >
             New Workout
           </motion.button>
         </div>
       </motion.header>
+
+      {todayPlan && (
+        <motion.div variants={itemVariants} className="mb-8 relative z-10">
+          <TodayCard plan={todayPlan} />
+        </motion.div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10 relative z-10">
         <motion.div variants={itemVariants} whileHover={{ y: -5 }} className="glass p-6 rounded-2xl flex items-center gap-5 transition-transform duration-300">
