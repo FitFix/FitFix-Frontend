@@ -37,16 +37,6 @@
   --text-muted: #8892b0;
 }
 
-:root[data-theme="light"] {
-  --background: #F4F6F9; /* Very light slate grey */
-  --accent: #00B4D8; /* Slightly deeper blue-cyan for readability in light mode */
-  --text: #1E293B; /* Slate 800 */
-  --card: #FFFFFF;
-  --border: rgba(0, 180, 216, 0.15);
-  --glass-bg: rgba(255, 255, 255, 0.75);
-  --text-muted: #64748B; /* Slate 500 */
-}
-
 @theme {
   --color-background: var(--background);
   --color-accent: var(--accent);

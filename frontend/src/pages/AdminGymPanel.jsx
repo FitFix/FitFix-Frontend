@@ -1,12 +1,10 @@
-import { useState, useEffect, useContext } from 'react';
-import { Users, Shield, AlertTriangle, Briefcase, Search, Trash2, X, Phone, Sun, Moon } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Users, Shield, AlertTriangle, Briefcase, Search, Trash2, X, Phone } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { io } from 'socket.io-client';
-import { ThemeContext } from '../context/ThemeContext';
 import { API_BASE_URL } from '../config';
 
 export default function AdminGymPanel() {
-  const { theme, toggleTheme } = useContext(ThemeContext);
   const [members, setMembers] = useState([]);
   const [trainers, setTrainers] = useState([]);
   const [activeTab, setActiveTab] = useState('members'); // 'members', 'expired', 'trainers'
@@ -241,13 +239,6 @@ export default function AdminGymPanel() {
           <p className="text-gray-400 mt-1">Manage your members and facility</p>
         </div>
         <div className="flex items-center gap-4">
-          <button 
-            onClick={toggleTheme}
-            className="p-2 bg-transparent text-gray-400 hover:text-accent transition-colors flex items-center justify-center rounded-xl"
-            title="Toggle Theme"
-          >
-            {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
-          </button>
           <button onClick={() => { localStorage.clear(); window.location.href='/'; }} className="text-sm text-gray-400 hover:text-white">
             Logout
           </button>

@@ -55,6 +55,7 @@ app.use('/api/admin', require('./routes/adminRoutes'));
 app.use('/api/ai', require('./routes/aiRoutes'));
 app.use('/api/workouts', require('./routes/workoutRoutes'));
 app.use('/api/leads', require('./routes/leadRoutes'));
+app.use('/api/plan', require('./routes/planRoutes'));
 
 app.get('/', (req, res) => {
   res.send('FitFix API is running');

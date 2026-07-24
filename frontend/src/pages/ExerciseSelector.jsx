@@ -1,12 +1,9 @@
-import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Sun, Moon } from 'lucide-react';
-import { ThemeContext } from '../context/ThemeContext';
 import { API_BASE_URL } from '../config';
 
 export default function ExerciseSelector() {
   const navigate = useNavigate();
-  const { theme, toggleTheme } = useContext(ThemeContext);
   const [exercises, setExercises] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -67,13 +64,6 @@ export default function ExerciseSelector() {
       <header className="mb-8 flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Select Workout</h1>
         <div className="flex items-center gap-4">
-          <button 
-            onClick={toggleTheme}
-            className="p-2 bg-transparent text-gray-400 hover:text-accent transition-colors flex items-center justify-center rounded-xl"
-            title="Toggle Theme"
-          >
-            {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
-          </button>
           <button onClick={() => navigate('/dashboard')} className="text-gray-400 hover:text-white">Dashboard</button>
         </div>
       </header>
