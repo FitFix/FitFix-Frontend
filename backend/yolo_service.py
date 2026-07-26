@@ -217,9 +217,13 @@ class YoloPoseServicer(yolo_pb2_grpc.YoloPoseServicer):
 def serve():
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=4))
     yolo_pb2_grpc.add_YoloPoseServicer_to_server(YoloPoseServicer(), server)
-    server.add_insecure_port('127.0.0.1:5001')
-    print("Starting YOLO and MediaPipe gRPC Service on 127.0.0.1:5001")
+    port = os.getenv('GRPC_PORT', '5001')
+    host = os.getenv('GRPC_HOST', '0.0.0.0')
+    address = f"{host}:{port}"
+    server.add_insecure_port(address)
+    print(f"Starting YOLO and MediaPipe gRPC Service on {address}")
     server.start()
+
     try:
         server.wait_for_termination()
     except KeyboardInterrupt:

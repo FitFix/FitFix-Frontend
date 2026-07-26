@@ -14,7 +14,9 @@ const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
 });
 
 const yoloProto = grpc.loadPackageDefinition(packageDefinition).yolo;
-const client = new yoloProto.YoloPose('127.0.0.1:5001', grpc.credentials.createInsecure());
+const YOLO_GRPC_URL = process.env.YOLO_GRPC_URL || '127.0.0.1:5001';
+const client = new yoloProto.YoloPose(YOLO_GRPC_URL, grpc.credentials.createInsecure());
+
 
 class AIService {
   euclideanDistance(vec1, vec2) {
