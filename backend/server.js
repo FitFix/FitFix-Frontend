@@ -61,6 +61,28 @@ app.get('/', (req, res) => {
   res.send('FitFix API is running');
 });
 
+app.get('/ping', (req, res) => {
+  res.status(200).send('pong');
+});
+
+// Self-ping keep-alive mechanism to prevent Render free tier from sleeping after 15 mins of inactivity
+const BACKEND_URL = process.env.RENDER_EXTERNAL_URL || process.env.BACKEND_URL || 'https://fitfix-backend.onrender.com';
+const KEEP_ALIVE_INTERVAL = 14 * 60 * 1000; // 14 minutes
+
+function startKeepAlive() {
+  setInterval(() => {
+    const pingUrl = `${BACKEND_URL}/ping`;
+    const client = pingUrl.startsWith('https') ? require('https') : require('http');
+    client.get(pingUrl, (res) => {
+      console.log(`[Keep-Alive] Self-ping status code: ${res.statusCode}`);
+    }).on('error', (err) => {
+      console.error('[Keep-Alive] Self-ping failed:', err.message);
+    });
+  }, KEEP_ALIVE_INTERVAL);
+}
+
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  startKeepAlive();
 });
+
