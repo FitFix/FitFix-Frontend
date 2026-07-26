@@ -46,8 +46,23 @@ if HAS_ULTRALYTICS:
 else:
     print("Warning: Missing python dependency ultralytics. Please install it.")
 
+import urllib.request
+
+def ensure_model_exists(file_path, url):
+    if not os.path.exists(file_path):
+        print(f"Model file missing at {file_path}. Downloading from {url}...")
+        try:
+            urllib.request.urlretrieve(url, file_path)
+            print(f"Successfully downloaded model to {file_path}")
+        except Exception as e:
+            print(f"Error downloading model from {url}: {e}")
+
 # Initialize MediaPipe Hand Landmarker
 model_path_hand = os.path.join(os.path.dirname(__file__), "hand_landmarker.task")
+ensure_model_exists(
+    model_path_hand,
+    "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task"
+)
 landmarker = None
 
 if HAS_MEDIAPIPE:
@@ -69,6 +84,10 @@ else:
 
 # Initialize MediaPipe Pose Landmarker
 model_path_pose = os.path.join(os.path.dirname(__file__), "pose_landmarker_lite.task")
+ensure_model_exists(
+    model_path_pose,
+    "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task"
+)
 pose_landmarker = None
 
 if HAS_MEDIAPIPE:
@@ -85,6 +104,7 @@ if HAS_MEDIAPIPE:
             print(f"Error loading MediaPipe Pose Landmarker: {e}")
     else:
         print(f"MediaPipe Pose Landmarker task file not found at {model_path_pose}")
+
 
 # MediaPipe BlazePose 33-landmark index -> COCO-style joint names the app expects
 POSE_LANDMARK_MAP = {
