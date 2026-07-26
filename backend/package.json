@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "start:render": "bash start.sh",
-    "build:render": "pip install -r requirements.txt && npm install",
+    "build:render": "pip install --break-system-packages -r requirements.txt && npm install",
     "dev": "nodemon server.js",
     "check": "node --check server.js && node --check routes/authRoutes.js && node --check routes/adminRoutes.js && node --check routes/aiRoutes.js && node --check routes/workoutRoutes.js"
   },
