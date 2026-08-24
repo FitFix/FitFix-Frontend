@@ -1,0 +1,44 @@
+{
+  "expo": {
+    "name": "FitFix",
+    "slug": "fitfix-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0A0A0C"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.fitfix.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "FitFix requires camera access to perform real-time AI exercise pose tracking and form correction."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0A0A0C"
+      },
+      "package": "com.fitfix.app",
+      "permissions": [
+        "CAMERA"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "FitFix requires camera access to perform real-time AI exercise pose tracking and form correction."
+        }
+      ]
+    ]
+  }
+}
