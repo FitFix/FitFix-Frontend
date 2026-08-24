@@ -6,7 +6,10 @@ const authHeaders = () => ({
 });
 
 async function handle(res) {
-  const data = await res.json().catch(() => ({}));
+  const data = await res.json().catch(err => {
+    console.error('Failed to parse JSON response:', err);
+    throw new Error('Invalid JSON response from server');
+  });
   if (!res.ok) throw new Error(data.error || 'Request failed');
   return data;
 }
