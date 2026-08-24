@@ -1,11 +1,20 @@
 import { motion, useReducedMotion } from 'framer-motion';
 import { VIEWPORT_ONCE } from '../motion/orchestration';
 
+const tagsMap = {};
+function getMotionTag(Tag) {
+  if (typeof Tag !== 'string') return motion.create(Tag);
+  if (!tagsMap[Tag]) {
+    tagsMap[Tag] = motion.create(Tag);
+  }
+  return tagsMap[Tag];
+}
+
 // Word-staggered blur-rise reveal, fires once. Words wrap naturally.
 export default function TextReveal({ children, className = '', as: Tag = 'p', delay = 0 }) {
   const reduced = useReducedMotion();
   const words = String(children).split(' ');
-  const MotionTag = motion.create(Tag);
+  const MotionTag = getMotionTag(Tag);
 
   if (reduced) return <Tag className={className}>{children}</Tag>;
 

@@ -22,7 +22,6 @@ export default function AdminGymPanel() {
         window.location.href = '/manager-login';
         return;
       }
-      const user = JSON.parse(userStr);
 
       const [membersRes, trainersRes] = await Promise.all([
         fetch(`${API_BASE_URL}/api/admin/members`, {
