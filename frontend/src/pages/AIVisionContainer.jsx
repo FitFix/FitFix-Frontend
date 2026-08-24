@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { exerciseRules } from '../engine/ExerciseLogic';
+import exerciseRules from '../engine/ExerciseLogic';
 import { X, Camera, Video, VideoOff } from 'lucide-react';
 import { API_BASE_URL } from '../config';
 
