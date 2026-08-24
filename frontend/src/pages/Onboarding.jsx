@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Activity, Dumbbell, Salad, ArrowRight, ArrowLeft, Check } from 'lucide-react';
+import { Dumbbell, Salad, ArrowRight, ArrowLeft, Check } from 'lucide-react';
 import { saveProfile, generatePlan } from '../api/plan';
 
 const ACTIVITIES = [

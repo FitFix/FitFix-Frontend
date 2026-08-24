@@ -29,6 +29,26 @@ class Exercise {
     this.targetJoints = targetJoints;
     this.thresholds = thresholds;
     this.type = type;
+
+    // Validate configuration
+    this._validate();
+  }
+
+  _validate() {
+    // For rep exercises, ensure min and max are > 40 apart for meaningful hysteresis
+    if (this.type === 'rep') {
+      const range = this.thresholds.max - this.thresholds.min;
+      if (range <= 40) {
+        console.warn(`Exercise ${this.id}: threshold range (${range}°) is too small for rep counting. ` +
+                     `Should be > 40 degrees for effective hysteresis.`);
+      }
+    }
+
+    // Ensure min < max
+    if (this.thresholds.min >= this.thresholds.max) {
+      throw new Error(`Exercise ${this.id}: min threshold (${this.thresholds.min}) ` +
+                      `must be less than max threshold (${this.thresholds.max})`);
+    }
   }
 
   getFeedback() {
@@ -220,6 +240,11 @@ const exerciseRegistry = {
   'lateral_raise': new LateralRaise(),
   'hand_detection': new HandDetection()
 };
+
+// Validate all exercises on module load
+Object.values(exerciseRegistry).forEach(exercise => {
+  // Validation happens in constructor, so just accessing it triggers validation
+});
 
 module.exports = {
   Exercise,

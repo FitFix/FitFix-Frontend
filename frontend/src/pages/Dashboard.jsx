@@ -84,13 +84,18 @@ export default function Dashboard() {
       .then(({ profile }) => {
         if (!profile || !profile.onboardingComplete) navigate('/onboarding');
       })
-      .catch(() => {});
+      .catch(err => {
+        console.error('Failed to fetch profile:', err);
+      });
   }, [navigate]);
 
   // Today's schedule for the dashboard (same interactive card as My Plan)
   const [todayPlan, setTodayPlan] = React.useState(null);
   React.useEffect(() => {
-    getPlan().then(({ plan }) => { if (plan) setTodayPlan(plan); }).catch(() => {});
+    getPlan().then(({ plan }) => { if (plan) setTodayPlan(plan); })
+      .catch(err => {
+        console.error('Failed to fetch plan:', err);
+      });
   }, []);
 
   const sessionElements = stats.recentSessions && stats.recentSessions.length > 0 ? (
@@ -101,8 +106,8 @@ export default function Dashboard() {
       else if (session.exerciseId === 'pushup') name = 'Push-ups';
 
       return (
-        <motion.div 
-          key={session._id || index} 
+        <motion.div
+          key={session._id || index}
           whileHover={{ scale: 1.02, backgroundColor: 'rgba(0,229,255,0.05)' }}
           className="flex justify-between items-center p-4 bg-black/30 border border-white/5 rounded-2xl cursor-pointer transition-colors"
         >
@@ -135,7 +140,7 @@ export default function Dashboard() {
   }
 
   return (
-    <motion.div 
+    <motion.div
       variants={containerVariants}
       initial="hidden"
       animate="visible"

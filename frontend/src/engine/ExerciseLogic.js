@@ -8,7 +8,7 @@
 // `formCorrection` mirrors the backend messages (the live message comes from the
 // backend response; this is a local fallback / reference).
 
-export const exerciseRules = {
+const exerciseRules = {
   'bicep_curl': {
     name: 'Bicep Curls',
     description: 'Build your biceps with controlled curls.',
@@ -147,3 +147,28 @@ export const exerciseRules = {
     }
   }
 };
+
+// Validation function to ensure exercise configurations are valid
+function validateExerciseRules() {
+  for (const [id, rule] of Object.entries(exerciseRules)) {
+    // For rep exercises, ensure min and max are > 40 apart for meaningful hysteresis
+    if (rule.type === 'rep') {
+      const range = rule.thresholds.max - rule.thresholds.min;
+      if (range <= 40) {
+        console.warn(`Exercise ${id}: threshold range (${range}°) is too small for rep counting. ` +
+                     `Should be > 40 degrees for effective hysteresis.`);
+      }
+    }
+
+    // Ensure min < max
+    if (rule.thresholds.min >= rule.thresholds.max) {
+      console.error(`Exercise ${id}: min threshold (${rule.thresholds.min}) ` +
+                    `must be less than max threshold (${rule.thresholds.max})`);
+    }
+  }
+}
+
+// Validate on module load
+validateExerciseRules();
+
+export default exerciseRules;
