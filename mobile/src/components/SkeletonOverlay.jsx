@@ -10,7 +10,10 @@ const COCO_CONNECTIONS = [
   ['left_knee', 'left_ankle'], ['right_hip', 'right_knee'], ['right_knee', 'right_ankle']
 ];
 
-export default function SkeletonOverlay({ keypoints = [], width, height }) {
+// `width`/`height` are the captured photo's pixel size (the space the keypoints
+// are in). `slice` scales that space like the full-screen camera preview
+// (cover), and `mirrored` flips it to match the mirrored front-camera preview.
+export default function SkeletonOverlay({ keypoints = [], width, height, mirrored = false }) {
   if (!keypoints || keypoints.length === 0) return null;
 
   const kpMap = {};
@@ -21,8 +24,13 @@ export default function SkeletonOverlay({ keypoints = [], width, height }) {
   });
 
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      <Svg height="100%" width="100%" viewBox={`0 0 ${width || 640} ${height || 480}`}>
+    <View style={[StyleSheet.absoluteFill, mirrored && styles.mirrored]} pointerEvents="none">
+      <Svg
+        height="100%"
+        width="100%"
+        viewBox={`0 0 ${width || 480} ${height || 640}`}
+        preserveAspectRatio="xMidYMid slice"
+      >
         {/* Draw Bones */}
         {COCO_CONNECTIONS.map(([p1, p2], idx) => {
           const k1 = kpMap[p1];
@@ -61,3 +69,7 @@ export default function SkeletonOverlay({ keypoints = [], width, height }) {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  mirrored: { transform: [{ scaleX: -1 }] }
+});

@@ -120,6 +120,7 @@ const exerciseRules = {
     targetJoints: ['hip', 'shoulder', 'elbow'],
     thresholds: { min: 20, max: 95 },
     type: 'rep',
+    depthAt: 'max', // the working end is arms RAISED, so "depth" is the highest angle
     formCorrection: (angle) => {
       if (angle > 110) return { message: 'Too high — stop at shoulder height', color: 'yellow' };
       if (angle >= 80) return { message: 'Shoulder height — perfect!', color: 'green' };

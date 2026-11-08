@@ -141,10 +141,15 @@ class AIController {
       const [a, b, c] = useLeft ? leftPts : rightPts;
 
       let angle = 0;
+      // `measured` tells clients whether `angle` is real. When the joints aren't
+      // confidently visible we still send keypoints (for the overlay) but angle
+      // stays 0 — rep counters must ignore it, or 0° reads as "fully contracted".
+      let measured = false;
       let feedback = { message: 'Position yourself in frame', color: 'yellow' };
 
       if (a && b && c && a.score > 0.4 && b.score > 0.4 && c.score > 0.4) {
         angle = Math.round(aiService.calculateAngle(a, b, c));
+        measured = true;
         // ctx lets an exercise read secondary joint angles for richer form cues.
         const ctx = {
           side,
@@ -164,6 +169,7 @@ class AIController {
         success: true,
         keypoints,
         angle,
+        measured,
         feedback
       });
     } catch (err) {

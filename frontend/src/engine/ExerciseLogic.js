@@ -5,6 +5,8 @@
 // measures (exerciseRegistry.js targetJoints) since the backend supplies the
 // angle these thresholds are compared against.
 // `type`: 'rep' (counted) | 'hold' (isometric, timed) | 'detect' (hand count).
+// `depthAt` (optional): 'max' when the hardest point of the movement is the
+// LARGEST angle (lateral raise); otherwise the smallest angle is the "depth".
 // `formCorrection` mirrors the backend messages (the live message comes from the
 // backend response; this is a local fallback / reference).
 
@@ -127,6 +129,7 @@ const exerciseRules = {
     targetJoints: ['hip', 'shoulder', 'elbow'],
     thresholds: { min: 20, max: 95 },
     type: 'rep',
+    depthAt: 'max', // the working end is arms RAISED, so "depth" is the highest angle
     formCorrection: (angle) => {
       if (angle > 110) return { message: 'Too high — stop at shoulder height', color: 'yellow' };
       if (angle >= 80) return { message: 'Shoulder height — perfect!', color: 'green' };

@@ -19,7 +19,7 @@ export default function AdminGymPanel() {
       const userStr = localStorage.getItem('user');
       const token = localStorage.getItem('token');
       if (!userStr || !token) {
-        window.location.href = '/manager-login';
+        window.location.href = '/login';
         return;
       }
 

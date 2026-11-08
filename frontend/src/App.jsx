@@ -1,7 +1,8 @@
 import { lazy, Suspense } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Landing from './pages/Landing';
 import { ThemeProvider } from './context/ThemeContext';
+import ProtectedRoute from './components/layout/ProtectedRoute';
 
 const Login = lazy(() => import('./pages/Login'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -29,13 +30,17 @@ function App() {
             <Routes>
               <Route path="/" element={<Landing />} />
               <Route path="/login" element={<Login />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/onboarding" element={<Onboarding />} />
-              <Route path="/plan" element={<MyPlan />} />
-              <Route path="/exercises" element={<ExerciseSelector />} />
-              <Route path="/workout/:exerciseId" element={<AIVisionContainer />} />
-              <Route path="/admin" element={<AdminGymPanel />} />
+              {/* Old links to the separate manager login go to the shared login */}
+              <Route path="/manager-login" element={<Navigate to="/login" replace />} />
+              <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+              <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
+              <Route path="/plan" element={<ProtectedRoute><MyPlan /></ProtectedRoute>} />
+              <Route path="/exercises" element={<ProtectedRoute><ExerciseSelector /></ProtectedRoute>} />
+              <Route path="/workout/:exerciseId" element={<ProtectedRoute><AIVisionContainer /></ProtectedRoute>} />
+              <Route path="/admin" element={<ProtectedRoute role="admin"><AdminGymPanel /></ProtectedRoute>} />
               <Route path="/pricing" element={<Pricing />} />
+              {/* Unknown URLs go home instead of rendering a blank page */}
+              <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Suspense>
         </div>

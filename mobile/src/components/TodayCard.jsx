@@ -4,7 +4,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Camera, Check, Dumbbell, Utensils } from 'lucide-react-native';
 
 const todayName = () => new Date().toLocaleDateString('en-US', { weekday: 'long' });
-const doneKey = () => `ffx-done-${new Date().toISOString().slice(0, 10)}`;
+// LOCAL calendar date (toISOString is UTC, which in India rolls over at 5:30 am
+// and would file early-morning ticks under the previous day).
+const localDate = (d = new Date()) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const doneKey = () => `ffx-done-${localDate()}`;
 
 export default function TodayCard({ plan, onNavigateWorkout }) {
   const [done, setDone] = React.useState(new Set());

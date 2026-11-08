@@ -1,19 +1,15 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { Activity, Dumbbell, History, ClipboardList } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { API_BASE_URL } from '../config';
 import { getProfile, getPlan } from '../api/plan';
+import exerciseRules from '../engine/ExerciseLogic';
 import TodayCard from '../components/TodayCard';
 
-const mockData = [
-  { subject: 'Speed', A: 120, fullMark: 150 },
-  { subject: 'Depth', A: 98, fullMark: 150 },
-  { subject: 'Consistency', A: 86, fullMark: 150 },
-  { subject: 'Form', A: 99, fullMark: 150 },
-  { subject: 'Endurance', A: 85, fullMark: 150 },
-];
+const exerciseName = (id) => exerciseRules[id]?.name || 'Workout';
+const isHoldExercise = (id) => exerciseRules[id]?.type === 'hold';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -40,6 +36,7 @@ export default function Dashboard() {
     totalWorkouts: 0,
     totalReps: 0,
     activeDays: 0,
+    byExercise: [],
     recentSessions: []
   });
   const [loading, setLoading] = React.useState(true);
@@ -100,10 +97,8 @@ export default function Dashboard() {
 
   const sessionElements = stats.recentSessions && stats.recentSessions.length > 0 ? (
     stats.recentSessions.map((session, index) => {
-      let name = 'Workout';
-      if (session.exerciseId === 'bicep_curl') name = 'Bicep Curls';
-      else if (session.exerciseId === 'squat') name = 'Squats';
-      else if (session.exerciseId === 'pushup') name = 'Push-ups';
+      const name = exerciseName(session.exerciseId);
+      const isHold = isHoldExercise(session.exerciseId);
 
       return (
         <motion.div
@@ -121,8 +116,11 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="text-right">
-            <p className="font-bold text-accent text-lg">{session.reps} Reps</p>
-            <p className="text-sm text-gray-400">Avg {session.maxDepthAngle}° Angle</p>
+            {/* Hold exercises (plank) store seconds held in `reps` */}
+            <p className="font-bold text-accent text-lg">{isHold ? `${session.reps}s hold` : `${session.reps} Reps`}</p>
+            {!isHold && session.maxDepthAngle != null && (
+              <p className="text-sm text-gray-400">Deepest {session.maxDepthAngle}°</p>
+            )}
           </div>
         </motion.div>
       );
@@ -213,15 +211,30 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 relative z-10">
         <motion.div variants={itemVariants} className="glass p-8 rounded-3xl">
-          <h2 className="text-2xl font-bold mb-6">Performance Radar</h2>
+          <h2 className="text-2xl font-bold mb-6">Training Mix</h2>
           <div className="h-72 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <RadarChart cx="50%" cy="50%" outerRadius="75%" data={mockData}>
-                <PolarGrid stroke="#333" />
-                <PolarAngleAxis dataKey="subject" tick={{ fill: '#888', fontSize: 13 }} />
-                <Radar name="Athlete" dataKey="A" stroke="#00E5FF" strokeWidth={2} fill="#00E5FF" fillOpacity={0.2} />
-              </RadarChart>
-            </ResponsiveContainer>
+            {stats.byExercise && stats.byExercise.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={stats.byExercise.map((e) => ({ name: e.name || exerciseName(e.exerciseId), sessions: e.sessions }))}
+                  layout="vertical"
+                  margin={{ top: 0, right: 16, bottom: 0, left: 8 }}
+                >
+                  <XAxis type="number" allowDecimals={false} tick={{ fill: '#888', fontSize: 12 }} stroke="#333" />
+                  <YAxis type="category" dataKey="name" width={110} tick={{ fill: '#bbb', fontSize: 13 }} stroke="#333" />
+                  <Tooltip
+                    cursor={{ fill: 'rgba(0,229,255,0.06)' }}
+                    contentStyle={{ background: '#111', border: '1px solid #333', borderRadius: 12 }}
+                    formatter={(value) => [value, 'Sessions']}
+                  />
+                  <Bar dataKey="sessions" fill="#00E5FF" radius={[0, 6, 6, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex items-center justify-center text-gray-500 text-center">
+                Finish a camera workout to see your training mix.
+              </div>
+            )}
           </div>
         </motion.div>
 

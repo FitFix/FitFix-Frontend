@@ -30,6 +30,10 @@ io.on('connection', (socket) => {
 });
 
 app.use(cors({ origin: CLIENT_ORIGIN }));
+// Camera frames arrive as base64 JPEGs, which can exceed the 100kb default
+// (especially from phones). Parse /api/ai with a larger limit first; the
+// global parser below then skips those already-read bodies.
+app.use('/api/ai', express.json({ limit: '2mb' }));
 app.use(express.json());
 
 // Database connection

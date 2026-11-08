@@ -82,12 +82,14 @@ class AdminController {
       const user = await User.findOne({ _id: req.params.id, role: 'user', gymId: req.user.gymId });
       if (!user) return res.status(404).json({ error: 'User not found' });
 
-      let currentExpiry = user.subscriptionExpiry && user.subscriptionExpiry > new Date() 
-        ? user.subscriptionExpiry 
+      // Always build a NEW Date: Mongoose doesn't detect in-place mutation
+      // (setMonth) of the existing Date, so the change would never be saved.
+      const base = user.subscriptionExpiry && user.subscriptionExpiry > new Date()
+        ? user.subscriptionExpiry
         : new Date();
-      
-      currentExpiry.setMonth(currentExpiry.getMonth() + monthsToAdd);
-      user.subscriptionExpiry = currentExpiry;
+      const newExpiry = new Date(base.getTime());
+      newExpiry.setMonth(newExpiry.getMonth() + monthsToAdd);
+      user.subscriptionExpiry = newExpiry;
       await user.save();
       
       res.json(user);
