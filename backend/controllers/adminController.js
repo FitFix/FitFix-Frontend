@@ -1,9 +1,9 @@
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
+const Gym = require('../models/Gym');
 const Trainer = require('../models/Trainer');
 const Inventory = require('../models/Inventory');
-
-const DEFAULT_MEMBER_PASSWORD = process.env.DEFAULT_MEMBER_PASSWORD || 'password123';
+const { generateTemporaryPassword } = require('../config/security');
 
 class AdminController {
   // Members
@@ -27,13 +27,20 @@ class AdminController {
         return res.status(400).json({ error: 'name and email are required' });
       }
 
-      const existing = await User.findOne({ email: email.toLowerCase().trim() });
-      if (existing) return res.status(409).json({ error: 'A member with this email already exists' });
+      const emailClean = email.toLowerCase().trim();
+      const [existing, ownerEmail] = await Promise.all([
+        User.findOne({ email: emailClean }),
+        Gym.exists({ adminEmail: emailClean })
+      ]);
+      if (existing || ownerEmail) return res.status(409).json({ error: 'A member with this email already exists' });
 
-      const passwordHash = await bcrypt.hash(password || DEFAULT_MEMBER_PASSWORD, 10);
+      // No shared default password: if the admin didn't set one, generate a
+      // random one-time password and return it once so they can pass it on.
+      const temporaryPassword = password ? null : generateTemporaryPassword();
+      const passwordHash = await bcrypt.hash(password || temporaryPassword, 10);
       const member = await User.create({
         name,
-        email,
+        email: emailClean,
         phone,
         gymId,
         passwordHash,
@@ -42,7 +49,7 @@ class AdminController {
         faceEncoding
       });
 
-      res.status(201).json(member);
+      res.status(201).json(temporaryPassword ? { ...member.toJSON(), temporaryPassword } : member);
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
@@ -82,12 +89,14 @@ class AdminController {
       const user = await User.findOne({ _id: req.params.id, role: 'user', gymId: req.user.gymId });
       if (!user) return res.status(404).json({ error: 'User not found' });
 
-      let currentExpiry = user.subscriptionExpiry && user.subscriptionExpiry > new Date() 
-        ? user.subscriptionExpiry 
+      // Always build a NEW Date: Mongoose doesn't detect in-place mutation
+      // (setMonth) of the existing Date, so the change would never be saved.
+      const base = user.subscriptionExpiry && user.subscriptionExpiry > new Date()
+        ? user.subscriptionExpiry
         : new Date();
-      
-      currentExpiry.setMonth(currentExpiry.getMonth() + monthsToAdd);
-      user.subscriptionExpiry = currentExpiry;
+      const newExpiry = new Date(base.getTime());
+      newExpiry.setMonth(newExpiry.getMonth() + monthsToAdd);
+      user.subscriptionExpiry = newExpiry;
       await user.save();
       
       res.json(user);

@@ -7,7 +7,11 @@ import { Camera, Check, Dumbbell, Salad, CalendarDays } from 'lucide-react';
 // ticking on one page is reflected on the other.
 
 const todayName = () => new Date().toLocaleDateString('en-US', { weekday: 'long' });
-const doneKey = () => `ffx-done-${new Date().toISOString().slice(0, 10)}`;
+// LOCAL calendar date (toISOString is UTC, which in India rolls over at 5:30 am
+// and would file early-morning ticks under the previous day).
+const localDate = (d = new Date()) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const doneKey = () => `ffx-done-${localDate()}`;
 
 export default function TodayCard({ plan, className = '' }) {
   const navigate = useNavigate();

@@ -4,32 +4,38 @@ const cors = require('cors');
 const dns = require('dns');
 dns.setServers(['8.8.8.8', '1.1.1.1']);
 require('dotenv').config();
+const { getJwtSecret } = require('./config/security');
+
+// Refuse to start with a missing or publicly known JWT secret: anyone could
+// otherwise sign tokens for any user or gym.
+try {
+  getJwtSecret();
+} catch (err) {
+  console.error(`FATAL: ${err.message}`);
+  process.exit(1);
+}
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 const CLIENT_ORIGIN = process.env.FRONTEND_URL || '*';
 
-// Create HTTP server and integrate Socket.io
+// Render (and most hosts) sit behind one proxy; trust it so req.ip is the real
+// client address — the rate limiters key on it.
+app.set('trust proxy', 1);
+
+// Create HTTP server and integrate Socket.io (admin-only, one room per gym)
 const http = require('http');
-const { Server } = require('socket.io');
+const { setupRealtime } = require('./realtime');
 const server = http.createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: CLIENT_ORIGIN,
-    methods: ['GET', 'POST']
-  }
-});
+const io = setupRealtime(server, CLIENT_ORIGIN);
 
 app.set('io', io); // Make io accessible in route handlers
 
-io.on('connection', (socket) => {
-  console.log('A client connected:', socket.id);
-  socket.on('disconnect', () => {
-    console.log('Client disconnected:', socket.id);
-  });
-});
-
 app.use(cors({ origin: CLIENT_ORIGIN }));
+// Camera frames arrive as base64 JPEGs, which can exceed the 100kb default
+// (especially from phones). Parse /api/ai with a larger limit first; the
+// global parser below then skips those already-read bodies.
+app.use('/api/ai', express.json({ limit: '2mb' }));
 app.use(express.json());
 
 // Database connection

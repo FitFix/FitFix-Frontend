@@ -1,8 +1,12 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import exerciseRules from '../engine/ExerciseLogic';
+import { createWorkoutTracker } from '../engine/workoutTracker';
 import { X, Camera, Video, VideoOff } from 'lucide-react';
 import { API_BASE_URL } from '../config';
+
+// Frames are sent at this width; height follows the camera's real aspect ratio.
+const CAPTURE_WIDTH = 320;
 
 export default function AIVisionContainer() {
   const { exerciseId } = useParams();
@@ -10,29 +14,50 @@ export default function AIVisionContainer() {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
-  
+  const captureCanvasRef = useRef(null);
+  // Size (px) of the last frame sent — keypoints come back in this space.
+  const frameSizeRef = useRef({ width: CAPTURE_WIDTH, height: 240 });
+
   const [exercise] = useState(exerciseRules[exerciseId]);
+  const trackerRef = useRef(null);
+  if (trackerRef.current === null) trackerRef.current = createWorkoutTracker(exercise);
   const [reps, setReps] = useState(0);
   const [currentAngle, setCurrentAngle] = useState(0);
   const [formStatus, setFormStatus] = useState({ message: 'Click "Start Camera" to begin', color: 'gray' });
   const [showSkeleton, setShowSkeleton] = useState(true);
   const [isCameraActive, setIsCameraActive] = useState(false);
-  const [, setRepState] = useState('down');
   const [holdSeconds, setHoldSeconds] = useState(0);
-  const holdRef = useRef(null);
   const isHold = exercise && exercise.type === 'hold';
 
   const captureFrame = () => {
     const video = videoRef.current;
-    if (!video || video.readyState < 2) return null;
-    
-    const canvas = document.createElement('canvas');
-    canvas.width = 320;
-    canvas.height = 240;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    return canvas.toDataURL('image/jpeg', 0.45); // highly optimized payload size
+    if (!video || video.readyState < 2 || !video.videoWidth || !video.videoHeight) return null;
+
+    // Keep the camera's real aspect ratio. Squeezing e.g. a 16:9 webcam into
+    // 320x240 distorts every joint angle and misaligns the skeleton overlay.
+    const width = CAPTURE_WIDTH;
+    const height = Math.round((CAPTURE_WIDTH * video.videoHeight) / video.videoWidth);
+    if (!captureCanvasRef.current) captureCanvasRef.current = document.createElement('canvas');
+    const canvas = captureCanvasRef.current;
+    canvas.width = width;
+    canvas.height = height;
+    canvas.getContext('2d').drawImage(video, 0, 0, width, height);
+    frameSizeRef.current = { width, height };
+    return canvas.toDataURL('image/jpeg', 0.45); // small payload
   };
+
+  // Match the overlay canvas to the frame size so keypoints (in frame pixels)
+  // can be drawn 1:1; CSS object-cover then scales it exactly like the video.
+  const prepareOverlay = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return null;
+    const { width, height } = frameSizeRef.current;
+    if (canvas.width !== width) canvas.width = width;
+    if (canvas.height !== height) canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    return { canvas, ctx };
+  }, []);
 
   const startCamera = async () => {
     try {
@@ -60,16 +85,15 @@ export default function AIVisionContainer() {
       videoRef.current.srcObject = null;
     }
     setIsCameraActive(false);
-    holdRef.current = null; // reset hold timer so a paused gap isn't counted
+    trackerRef.current.pause(); // so the paused gap isn't counted as hold time
     setFormStatus({ message: 'Camera stopped', color: 'gray' });
   };
 
   const drawSkeleton = useCallback((keypoints) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
+    const overlay = prepareOverlay();
+    if (!overlay) return;
+    const { ctx } = overlay;
+
     const connections = [
       ['left_shoulder', 'right_shoulder'], ['left_shoulder', 'left_elbow'], ['left_elbow', 'left_wrist'],
       ['right_shoulder', 'right_elbow'], ['right_elbow', 'right_wrist'], ['left_shoulder', 'left_hip'],
@@ -78,15 +102,16 @@ export default function AIVisionContainer() {
     ];
 
     ctx.strokeStyle = '#00E5FF';
-    ctx.lineWidth = 4;
+    ctx.lineWidth = 2;
 
+    // Keypoints are in frame pixels, and the overlay is sized to the frame.
     connections.forEach(([p1Name, p2Name]) => {
       const p1 = keypoints.find(k => k.name === p1Name);
       const p2 = keypoints.find(k => k.name === p2Name);
       if (p1 && p2 && p1.score > 0.3 && p2.score > 0.3) {
         ctx.beginPath();
-        ctx.moveTo(p1.x * 2, p1.y * 2); // Scale up coordinates from 320x240 to 640x480
-        ctx.lineTo(p2.x * 2, p2.y * 2);
+        ctx.moveTo(p1.x, p1.y);
+        ctx.lineTo(p2.x, p2.y);
         ctx.stroke();
       }
     });
@@ -95,20 +120,19 @@ export default function AIVisionContainer() {
       if (kp.score > 0.3) {
         ctx.fillStyle = '#FFFFFF';
         ctx.beginPath();
-        ctx.arc(kp.x * 2, kp.y * 2, 6, 0, 2 * Math.PI);
+        ctx.arc(kp.x, kp.y, 3, 0, 2 * Math.PI);
         ctx.fill();
       }
     });
-  }, []);
+  }, [prepareOverlay]);
 
   const drawHandSkeleton = useCallback((hands) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const overlay = prepareOverlay();
+    if (!overlay) return;
+    const { canvas, ctx } = overlay;
 
     ctx.strokeStyle = '#00E5FF';
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 1.5;
 
     hands.forEach(hand => {
       const lms = hand.landmarks;
@@ -156,43 +180,29 @@ export default function AIVisionContainer() {
       lms.forEach(lm => {
         ctx.fillStyle = '#FFFFFF';
         ctx.beginPath();
-        ctx.arc(lm.x * canvas.width, lm.y * canvas.height, 4, 0, 2 * Math.PI);
+        ctx.arc(lm.x * canvas.width, lm.y * canvas.height, 2, 0, 2 * Math.PI);
         ctx.fill();
       });
     });
-  }, []);
+  }, [prepareOverlay]);
 
-  const processKeypoints = useCallback((keypoints, angle, feedback) => {
+  const processKeypoints = useCallback((angle, measured, feedback) => {
     setCurrentAngle(angle);
     setFormStatus(feedback);
     if (!exercise) return;
 
-    // Isometric holds (e.g. plank): accumulate seconds held with good form.
-    // No rep state machine — the angle barely changes, so counting reps here
-    // would produce spurious counts.
-    if (exercise.type === 'hold') {
-      const now = performance.now();
-      const goodForm = feedback && (feedback.color === 'green' || feedback.color === '#00E5FF');
-      if (goodForm && holdRef.current != null) {
-        setHoldSeconds(s => s + (now - holdRef.current) / 1000);
-      }
-      holdRef.current = now;
-      return;
-    }
-
-    // Rep exercises: hysteresis state machine on the primary angle.
-    if (exercise.thresholds) {
-      const { min, max } = exercise.thresholds;
-      setRepState(currentRepState => {
-        if (angle < min + 20 && currentRepState === 'down') {
-          return 'up';
-        } else if (angle > max - 20 && currentRepState === 'up') {
-          setReps(r => r + 1);
-          return 'down';
-        }
-        return currentRepState;
-      });
-    }
+    // Reps (hysteresis) and hold time (plank) are tracked outside React state
+    // so each frame is counted exactly once; React state just mirrors it.
+    const tracker = trackerRef.current;
+    tracker.update({
+      angle,
+      // Older backends don't send `measured`; the tracker also ignores angle 0.
+      measured: measured !== false,
+      goodForm: !!feedback && (feedback.color === 'green' || feedback.color === '#00E5FF'),
+      now: performance.now()
+    });
+    setReps(tracker.reps);
+    setHoldSeconds(tracker.holdSeconds);
   }, [exercise]);
 
   useEffect(() => {
@@ -227,9 +237,11 @@ export default function AIVisionContainer() {
               if (showSkeleton) drawHandSkeleton(data.hands || []);
             } else {
               if (data.success && data.keypoints) {
-                processKeypoints(data.keypoints, data.angle, data.feedback);
+                processKeypoints(data.angle, data.measured, data.feedback);
                 if (showSkeleton) drawSkeleton(data.keypoints);
               } else {
+                // Nobody detected: pause the hold timer so time out of frame isn't credited.
+                trackerRef.current.pause();
                 setFormStatus(data.feedback || { message: 'Position yourself in frame', color: 'yellow' });
               }
             }
@@ -272,18 +284,15 @@ export default function AIVisionContainer() {
         return;
       }
 
+      // reps (seconds for holds), deepest angle reached, avg seconds per rep
+      const { reps: savedReps, maxDepthAngle, avgSpeed } = trackerRef.current.summary();
       const res = await fetch(`${API_BASE_URL}/api/workouts/sessions`, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({
-          exerciseId,
-          reps: isHold ? Math.floor(holdSeconds) : reps,
-          maxDepthAngle: currentAngle,
-          avgSpeed: 1.0
-        })
+        body: JSON.stringify({ exerciseId, reps: savedReps, maxDepthAngle, avgSpeed })
       });
 
       if (res.ok) {
@@ -331,10 +340,10 @@ export default function AIVisionContainer() {
         </div>
       )}
       
-      <canvas 
-        ref={canvasRef} 
-        width={640} 
-        height={480} 
+      <canvas
+        ref={canvasRef}
+        width={CAPTURE_WIDTH}
+        height={240}
         style={{ transform: 'scaleX(-1)' }}
         className={`absolute inset-0 w-full h-full object-cover ${(!showSkeleton || !isCameraActive) && 'hidden'}`}
       />

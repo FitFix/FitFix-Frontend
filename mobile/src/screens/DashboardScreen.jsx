@@ -54,7 +54,11 @@ export default function DashboardScreen({ navigation, onLogout }) {
       {plan ? (
         <TodayCard
           plan={plan}
-          onNavigateWorkout={(exId) => navigation.navigate('CameraWorkout', { exerciseId: exId })}
+          // CameraWorkout lives in the Workouts tab's nested stack, so target it
+          // through the tab (React Navigation 7 doesn't search child navigators).
+          onNavigateWorkout={(exId) =>
+            navigation.navigate('Workouts', { screen: 'CameraWorkout', params: { exerciseId: exId } })
+          }
         />
       ) : null}
 

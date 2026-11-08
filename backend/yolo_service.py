@@ -4,8 +4,33 @@ import os
 import sys
 import grpc
 from concurrent import futures
-from PIL import Image
+from PIL import Image, ImageOps
 import numpy as np
+
+# Frames larger than this (longest side, px) are downscaled before inference.
+# MediaPipe's lite pose model runs at a small input size anyway, so decoding a
+# full-resolution phone photo only costs time. Output coordinates are still
+# reported in the ORIGINAL frame's pixel space.
+MAX_INFERENCE_SIDE = 640
+
+
+def load_frame(encoded):
+    """Decode a base64 (optionally data-URI) image into an upright RGB PIL image."""
+    if "," in encoded:
+        encoded = encoded.split(",", 1)[1]
+    image = Image.open(io.BytesIO(base64.b64decode(encoded)))
+    # Phone cameras often store rotation in EXIF instead of rotating pixels;
+    # without this the model would see a sideways person.
+    image = ImageOps.exif_transpose(image)
+    return image.convert("RGB")
+
+
+def downscale_for_inference(image):
+    if max(image.size) <= MAX_INFERENCE_SIDE:
+        return image
+    small = image.copy()
+    small.thumbnail((MAX_INFERENCE_SIDE, MAX_INFERENCE_SIDE))
+    return small
 
 # Try to import ultralytics
 try:
@@ -132,18 +157,11 @@ class YoloPoseServicer(yolo_pb2_grpc.YoloPoseServicer):
             return yolo_pb2.PredictResponse(keypoints=[])
 
         try:
-            # Handle base64 decoding
-            encoded = request.image
-            if "," in encoded:
-                encoded = encoded.split(",", 1)[1]
-
-            image_bytes = base64.b64decode(encoded)
-            image = Image.open(io.BytesIO(image_bytes))
-
-            # Convert to RGB numpy array for MediaPipe
-            image_rgb = image.convert("RGB")
-            image_np = np.array(image_rgb)
-            height, width = image_np.shape[:2]
+            image_rgb = load_frame(request.image)
+            # Landmarks are normalized (0..1), so scale them by the ORIGINAL
+            # frame size even though inference runs on a downscaled copy.
+            width, height = image_rgb.size
+            image_np = np.array(downscale_for_inference(image_rgb))
             mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=image_np)
 
             # Perform Pose Estimation
@@ -185,17 +203,8 @@ class YoloPoseServicer(yolo_pb2_grpc.YoloPoseServicer):
             return yolo_pb2.HandResponse(hands=[], count=0)
 
         try:
-            # Handle base64 decoding
-            encoded = request.image
-            if "," in encoded:
-                encoded = encoded.split(",", 1)[1]
-            
-            image_bytes = base64.b64decode(encoded)
-            image = Image.open(io.BytesIO(image_bytes))
-            
-            # Convert image to RGB numpy array for MediaPipe
-            image_rgb = image.convert("RGB")
-            image_np = np.array(image_rgb)
+            # Hand landmarks are returned normalized (0..1), so downscaling is safe.
+            image_np = np.array(downscale_for_inference(load_frame(request.image)))
             mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=image_np)
             
             # Perform Hand Detection

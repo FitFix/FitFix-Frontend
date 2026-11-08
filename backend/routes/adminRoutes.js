@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const adminController = require('../controllers/adminController');
-const { requireAuth } = require('../middleware/authMiddleware');
+const { requireAuth, requireRole } = require('../middleware/authMiddleware');
 
-router.use(requireAuth);
+// Gym management is for gym admins only — members must not reach these.
+router.use(requireAuth, requireRole('admin'));
 
 // Members
 router.get('/members', adminController.getMembers);

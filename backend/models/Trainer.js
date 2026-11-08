@@ -10,4 +10,12 @@ const trainerSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
+// Biometric face vectors stay server-side.
+trainerSchema.set('toJSON', {
+  transform: (doc, ret) => {
+    delete ret.faceEncoding;
+    return ret;
+  }
+});
+
 module.exports = mongoose.model('Trainer', trainerSchema);

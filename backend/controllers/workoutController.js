@@ -1,4 +1,5 @@
 const workoutService = require('../services/workoutService');
+const User = require('../models/User');
 const mongoose = require('mongoose');
 
 const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
@@ -38,6 +39,14 @@ class WorkoutController {
       
       if (!isValidObjectId(userId)) {
         return res.status(400).json({ error: 'Invalid userId' });
+      }
+
+      // Admins may only view members of their own gym.
+      if (req.user.role !== 'user' && req.user._id.toString() !== userId.toString()) {
+        const member = await User.exists({ _id: userId, gymId: req.user.gymId });
+        if (!member) {
+          return res.status(404).json({ error: 'User not found' });
+        }
       }
 
       const summary = await workoutService.getSummary(userId);
