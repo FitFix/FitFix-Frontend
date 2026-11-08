@@ -50,8 +50,9 @@ export default function AdminGymPanel() {
   useEffect(() => {
     fetchData();
 
-    // Socket.io connection
-    const socket = io(API_BASE_URL);
+    // Socket.io connection — the server only accepts gym admins and only sends
+    // this gym's alerts, so authenticate with the admin's token.
+    const socket = io(API_BASE_URL, { auth: { token: localStorage.getItem('token') } });
     socket.on('entry-alert', (data) => {
       setEntryAlert(data);
       if (data.status === 'valid') fetchData(); // Refresh attendance
@@ -123,9 +124,18 @@ export default function AdminGymPanel() {
         body: JSON.stringify({ name, email, phone, subscriptionExpiry: expiryDate })
       });
       if (res.ok) {
+        const created = await res.json().catch(() => ({}));
         e.target.reset();
         fetchData();
         setShowAddMember(false);
+        // The server generates a random one-time password (there's no shared
+        // default anymore). It is only returned now, so show it to the admin.
+        if (created.temporaryPassword) {
+          window.alert(
+            `Member added.\n\nTemporary password for ${created.email}:\n${created.temporaryPassword}\n\n` +
+            'Share it with the member privately. It will not be shown again.'
+          );
+        }
       } else {
         throw new Error('API failed');
       }

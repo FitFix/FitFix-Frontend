@@ -35,4 +35,14 @@ const userSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
+// Never send password hashes or biometric face vectors to clients, wherever a
+// user document is serialized (res.json, socket emits, populate results).
+userSchema.set('toJSON', {
+  transform: (doc, ret) => {
+    delete ret.passwordHash;
+    delete ret.faceEncoding;
+    return ret;
+  }
+});
+
 module.exports = mongoose.model('User', userSchema);

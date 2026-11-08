@@ -3,13 +3,19 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Gym = require('../models/Gym');
 const Trainer = require('../models/Trainer');
+const { getJwtSecret, getAdminAccessToken, safeEqual } = require('../config/security');
 
 const createToken = (_id) => {
-  return jwt.sign({ _id }, process.env.JWT_SECRET || 'your_super_secret_jwt_key_here', { expiresIn: '3d' });
+  return jwt.sign({ _id }, getJwtSecret(), { expiresIn: '3d' });
 };
 
 class AuthController {
+  // Seeds demo accounts with a well-known password. Only available when
+  // explicitly enabled for local development — never on a real deployment.
   async setup(req, res) {
+    if (process.env.ENABLE_DEMO_SETUP !== 'true') {
+      return res.status(404).json({ error: 'Not found' });
+    }
     try {
       const salt = await bcrypt.genSalt(10);
       const hash = await bcrypt.hash('password123', salt);
@@ -169,35 +175,52 @@ class AuthController {
         return res.status(400).json({ error: 'Name, email, and password are required' });
       }
 
-      const existingUser = await User.findOne({ email: email.toLowerCase().trim() });
-      if (existingUser) {
+      const emailClean = email.toLowerCase().trim();
+      // Also block gym-owner emails: a member account with that email would
+      // shadow the owner at /login and lock them out of their gym.
+      const [existingUser, existingGym] = await Promise.all([
+        User.findOne({ email: emailClean }),
+        Gym.exists({ adminEmail: emailClean })
+      ]);
+      if (existingUser || existingGym) {
         return res.status(400).json({ error: 'Email already registered' });
+      }
+
+      // Becoming a gym owner needs the private ADMIN_ACCESS_TOKEN. With no
+      // token configured, owner self-registration is disabled.
+      const wantsAdmin = typeof adminToken === 'string' && adminToken.trim() !== '';
+      const adminSecret = getAdminAccessToken();
+      if (wantsAdmin && (!adminSecret || !safeEqual(adminToken.trim(), adminSecret))) {
+        return res.status(403).json({ error: 'Invalid admin access token' });
       }
 
       const salt = await bcrypt.genSalt(10);
       const passwordHash = await bcrypt.hash(password, salt);
 
-      const ADMIN_SECRET = process.env.ADMIN_ACCESS_TOKEN || 'admin-secret-token-123';
       let role = 'user';
       let gymId = null;
 
-      if (adminToken && adminToken.trim() === ADMIN_SECRET) {
+      if (wantsAdmin) {
         role = 'admin';
         const nameOfGym = gymName ? gymName.trim() : `${name}'s Gym`;
         const gym = await Gym.create({
           name: nameOfGym,
-          adminEmail: email.toLowerCase().trim(),
+          adminEmail: emailClean,
           passwordHash,
           subscriptionStatus: 'active'
         });
         gymId = gym._id;
       } else {
+        // NOTE: self-registered members join the first gym. That's a product
+        // decision (no gym selection/invite yet), but they can no longer use
+        // any admin endpoints (see requireRole in routes/adminRoutes.js).
         let gym = await Gym.findOne();
         if (!gym) {
+          // Placeholder owner account nobody can log in to (random password).
           gym = await Gym.create({
             name: 'FitFix HQ',
             adminEmail: 'hq@fitfix.com',
-            passwordHash: await bcrypt.hash('password123', 10),
+            passwordHash: await bcrypt.hash(require('crypto').randomBytes(32).toString('hex'), 10),
             subscriptionStatus: 'active'
           });
         }
@@ -209,7 +232,7 @@ class AuthController {
 
       const user = await User.create({
         name,
-        email: email.toLowerCase().trim(),
+        email: emailClean,
         passwordHash,
         gymId,
         role,

@@ -1,39 +1,57 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Gym = require('../models/Gym');
+const { getJwtSecret } = require('../config/security');
+
+/**
+ * Resolve a JWT to the acting principal, or null if invalid.
+ * Tokens carry an `_id` that is either a User or (for manager logins) a Gym;
+ * a Gym acts as that gym's admin.
+ * Shared by the HTTP middleware and the Socket.io handshake.
+ */
+const authenticateToken = async (token) => {
+  if (!token) return null;
+  let payload;
+  try {
+    payload = jwt.verify(token, getJwtSecret());
+  } catch {
+    return null;
+  }
+
+  const user = await User.findOne({ _id: payload._id }).select('_id gymId role');
+  if (user) return user;
+
+  const gym = await Gym.findById(payload._id).select('_id');
+  if (gym) return { _id: gym._id, gymId: gym._id, role: 'admin' };
+
+  return null;
+};
 
 const requireAuth = async (req, res, next) => {
   const { authorization } = req.headers;
-
-  if (!authorization) {
+  if (!authorization || !authorization.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'Authorization token required' });
   }
 
-  const token = authorization.split(' ')[1];
-
   try {
-    const { _id } = jwt.verify(token, process.env.JWT_SECRET || 'your_super_secret_jwt_key_here');
-    
-    // Check if it is a standard user/member
-    let user = await User.findOne({ _id }).select('_id gymId role');
-    if (!user) {
-      // If not a user, check if it is a gym manager (where _id is the gym ID)
-      const gym = await Gym.findById(_id);
-      if (gym) {
-        user = { _id: gym._id, gymId: gym._id, role: 'admin' };
-      }
-    }
-    
+    const user = await authenticateToken(authorization.slice('Bearer '.length).trim());
     if (!user) {
       return res.status(401).json({ error: 'Request is not authorized' });
     }
-    
     req.user = user;
     next();
   } catch (error) {
     console.error(error);
     res.status(401).json({ error: 'Request is not authorized' });
   }
+};
+
+/** Use after requireAuth: only lets through users whose role is listed. */
+const requireRole = (...roles) => (req, res, next) => {
+  if (!req.user || !roles.includes(req.user.role)) {
+    return res.status(403).json({ error: 'You do not have permission to do this' });
+  }
+  next();
 };
 
 const checkGymSubscription = async (req, res, next) => {
@@ -52,4 +70,4 @@ const checkGymSubscription = async (req, res, next) => {
   }
 };
 
-module.exports = { requireAuth, checkGymSubscription };
+module.exports = { authenticateToken, requireAuth, requireRole, checkGymSubscription };
