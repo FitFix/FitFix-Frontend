@@ -6,7 +6,7 @@ import { createPoseTracker, createHandTracker } from '../vision/poseTracker';
 import { measureExercise } from '../vision/poseMath';
 import { OneEuroFilter } from '../vision/oneEuroFilter';
 import { prepareCanvas, drawPose, drawHands } from '../vision/drawLandmarks';
-import { X, Camera, Video, VideoOff, Cpu, Cloud } from 'lucide-react';
+import { X, Camera, Video, VideoOff, Cpu, Cloud, SwitchCamera } from 'lucide-react';
 import { API_BASE_URL } from '../config';
 
 // Cloud fallback frames are sent at this width; height follows the camera's aspect ratio.
@@ -42,6 +42,8 @@ export default function AIVisionContainer() {
   const [formStatus, setFormStatus] = useState({ message: 'Click "Start Camera" to begin', color: 'gray' });
   const [showSkeleton, setShowSkeleton] = useState(true);
   const [isCameraActive, setIsCameraActive] = useState(false);
+  // 'user' = front (selfie) camera, 'environment' = rear camera (sharper; for a propped-up phone)
+  const [facing, setFacing] = useState('user');
   const [holdSeconds, setHoldSeconds] = useState(0);
   // 'loading' → model downloading; 'ready' → on-device tracking; 'cloud' → server fallback
   const [engineStatus, setEngineStatus] = useState('loading');
@@ -87,17 +89,21 @@ export default function AIVisionContainer() {
     }
   }, [showSkeleton]);
 
-  const startCamera = async () => {
+  const startCamera = async (facingMode = facing) => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } }
+        video: { facingMode, width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } }
       });
+      const switching = !!streamRef.current; // flipping front/rear while already running
+      if (switching) streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
       }
       setIsCameraActive(true);
-      setFormStatus({ message: 'Position yourself in frame', color: '#00E5FF' });
+      // Only on first start: when switching, the tracking loop keeps the live
+      // message current (overwriting it here would leave a stale prompt).
+      if (!switching) setFormStatus({ message: 'Position yourself in frame', color: '#00E5FF' });
     } catch (err) {
       console.error('Camera access denied or error', err);
       setFormStatus({ message: 'Camera access required', color: 'red' });
@@ -120,6 +126,43 @@ export default function AIVisionContainer() {
     trackerRef.current.pause(); // so the paused gap isn't counted as hold time
     setFormStatus({ message: 'Camera stopped', color: 'gray' });
   };
+
+  const switchCamera = () => {
+    const next = facing === 'user' ? 'environment' : 'user';
+    setFacing(next);
+    trackerRef.current.pause(); // the scene changes; don't credit hold time across it
+    startCamera(next);
+  };
+
+  // Phones: keep the screen awake while the camera runs (otherwise it locks
+  // mid-set), and pause tracking when the user switches away so time away
+  // isn't counted. The wake lock is released whenever the page is hidden, so
+  // it's re-requested when the user comes back.
+  useEffect(() => {
+    if (!isCameraActive) return undefined;
+    let lock = null;
+    let released = false;
+    const requestLock = async () => {
+      if (!('wakeLock' in navigator) || document.visibilityState !== 'visible') return;
+      try {
+        lock = await navigator.wakeLock.request('screen');
+        if (released) lock.release().catch(() => {});
+      } catch {
+        // Not allowed (e.g. battery saver) — the workout still works.
+      }
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') requestLock();
+      else trackerRef.current.pause();
+    };
+    requestLock();
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      released = true;
+      document.removeEventListener('visibilitychange', onVisibility);
+      if (lock) lock.release().catch(() => {});
+    };
+  }, [isCameraActive]);
 
   /* ------------------------------------------------------------------
    * On-device tracking loop: one inference per NEW camera frame.
@@ -376,6 +419,9 @@ export default function AIVisionContainer() {
     ? { message: 'Loading AI model…', color: '#00E5FF' }
     : formStatus;
 
+  // Mirror only the front camera (selfie view); the rear camera shows the scene as-is.
+  const mirror = facing === 'user' ? 'scaleX(-1)' : 'none';
+
   const engineLabel = engineStatus === 'ready' && engineInfo
     ? `On-device · ${engineInfo.delegate}${engineInfo.model === 'hand' ? '' : ` · ${engineInfo.model} model`}`
     : engineStatus === 'cloud'
@@ -383,13 +429,15 @@ export default function AIVisionContainer() {
       : 'Loading AI model…';
 
   return (
-    <div className="relative w-full h-screen bg-black overflow-hidden flex justify-center">
+    // h-dvh: on phones, 100vh is taller than the visible area when the browser
+    // toolbar is showing, which would push the stats panel off-screen.
+    <div className="relative w-full h-dvh bg-black overflow-hidden flex justify-center">
       <video
         ref={videoRef}
         autoPlay
         playsInline
         muted
-        style={{ transform: 'scaleX(-1)' }}
+        style={{ transform: mirror }}
         className={`absolute inset-0 w-full h-full object-cover opacity-80 ${!isCameraActive ? 'hidden' : ''}`}
       />
 
@@ -403,7 +451,7 @@ export default function AIVisionContainer() {
             Start the camera for real-time pose tracking. Tracking runs on your device — your video never leaves it.
           </p>
           <button
-            onClick={startCamera}
+            onClick={() => startCamera()}
             className="px-8 py-4 bg-accent text-black font-black rounded-2xl glow-accent-hover hover:scale-105 transition-all text-lg shadow-[0_0_20px_rgba(0,229,255,0.3)]"
           >
             Start Camera
@@ -416,7 +464,7 @@ export default function AIVisionContainer() {
         ref={canvasRef}
         width={CAPTURE_WIDTH}
         height={240}
-        style={{ transform: 'scaleX(-1)' }}
+        style={{ transform: mirror }}
         className={`absolute inset-0 w-full h-full object-cover pointer-events-none ${(!showSkeleton || !isCameraActive) && 'hidden'}`}
       />
 
@@ -430,20 +478,19 @@ export default function AIVisionContainer() {
         >
           <X size={24} />
         </button>
-        <div className="flex flex-col items-center">
-          <h2 className="text-xl font-bold tracking-wider">{exercise.name}</h2>
-          {isCameraActive && (
-            <p className="mt-1 flex items-center gap-1.5 text-[11px] text-gray-300 bg-black/40 px-2 py-0.5 rounded-full tabular-nums" title="Where pose tracking runs and how fast">
-              {engineStatus === 'cloud' ? <Cloud size={12} /> : <Cpu size={12} />}
-              {engineLabel}
-              {engineStatus === 'ready' && perf.fps > 0 && ` · ${perf.inferenceMs} ms · ${perf.fps} fps`}
-            </p>
-          )}
-        </div>
+        <h2 className="text-lg sm:text-xl font-bold tracking-wider truncate px-2">{exercise.name}</h2>
 
         <div className="flex gap-2">
           {isCameraActive && (
             <>
+              <button
+                onClick={switchCamera}
+                className="p-2 bg-gray-900/60 rounded-full text-white backdrop-blur-md"
+                title="Switch front / rear camera"
+                aria-label="Switch front or rear camera"
+              >
+                <SwitchCamera size={24} />
+              </button>
               <button
                 onClick={() => setShowSkeleton(!showSkeleton)}
                 className={`p-2 rounded-full backdrop-blur-md transition-colors ${showSkeleton ? 'bg-accent/80 text-black' : 'bg-gray-900/60 text-white'}`}
@@ -464,7 +511,19 @@ export default function AIVisionContainer() {
       </div>
 
       {isCameraActive && (
-        <div className="absolute bottom-6 right-6 w-72 bg-black/75 backdrop-blur-md border border-gray-800 p-4 rounded-2xl z-10 flex flex-col gap-3">
+        // Own row under the top bar so it never squeezes the title on a phone.
+        <p
+          className="absolute top-[4.5rem] left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5 whitespace-nowrap text-[11px] text-gray-300 bg-black/50 px-2 py-0.5 rounded-full tabular-nums"
+          title="Where pose tracking runs and how fast"
+        >
+          {engineStatus === 'cloud' ? <Cloud size={12} /> : <Cpu size={12} />}
+          {engineLabel}
+          {engineStatus === 'ready' && perf.fps > 0 && ` · ${perf.inferenceMs} ms · ${perf.fps} fps`}
+        </p>
+      )}
+
+      {isCameraActive && (
+        <div className="absolute bottom-4 left-4 right-4 sm:left-auto sm:bottom-6 sm:right-6 sm:w-72 bg-black/75 backdrop-blur-md border border-gray-800 p-4 rounded-2xl z-10 flex flex-col gap-3">
           <div className="flex gap-2">
             {isHold ? (
               <div className="flex-1 text-center p-2 bg-gray-900/50 rounded-xl border border-gray-800">
