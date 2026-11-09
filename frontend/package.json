@@ -4,12 +4,16 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "copy:mediapipe": "node scripts/copy-mediapipe-wasm.mjs",
+    "predev": "npm run copy:mediapipe",
     "dev": "vite",
+    "prebuild": "npm run copy:mediapipe",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@mediapipe/tasks-vision": "1.1.1",
     "framer-motion": "^12.38.0",
     "lucide-react": "^1.11.0",
     "onnxruntime-web": "^1.24.3",

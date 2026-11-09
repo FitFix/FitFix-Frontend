@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# MediaPipe wasm runtime, copied from node_modules at dev/build time
+public/mediapipe/

@@ -7,8 +7,10 @@
 // `type`: 'rep' (counted) | 'hold' (isometric, timed) | 'detect' (hand count).
 // `depthAt` (optional): 'max' when the hardest point of the movement is the
 // LARGEST angle (lateral raise); otherwise the smallest angle is the "depth".
-// `formCorrection` mirrors the backend messages (the live message comes from the
-// backend response; this is a local fallback / reference).
+// `formCorrection(angle, ctx)` mirrors the backend's getFeedback. With on-device
+// tracking (src/vision) the web app computes angles and feedback locally from
+// these rules; the backend copy is used by the mobile app and the cloud
+// fallback. `ctx` = { side, jointAngle(n1, n2, n3) } for secondary-joint checks.
 
 const exerciseRules = {
   'bicep_curl': {
@@ -105,8 +107,13 @@ const exerciseRules = {
     targetJoints: ['shoulder', 'hip', 'knee'],
     thresholds: { min: 80, max: 175 },
     type: 'rep',
-    formCorrection: (angle) => {
-      if (angle > 165) return { message: 'Full lockout!', color: 'green' };
+    // Secondary check: at lockout the knees should also be extended.
+    formCorrection: (angle, ctx) => {
+      if (angle > 165) {
+        const knee = ctx && ctx.jointAngle ? ctx.jointAngle(`${ctx.side}_hip`, `${ctx.side}_knee`, `${ctx.side}_ankle`) : 0;
+        if (knee && knee < 150) return { message: 'Extend hips AND knees together', color: 'yellow' };
+        return { message: 'Full lockout!', color: 'green' };
+      }
       if (angle >= 95) return { message: 'Drive your hips forward', color: '#00E5FF' };
       return { message: 'Hinge — keep your back flat', color: '#00E5FF' };
     }
@@ -130,9 +137,14 @@ const exerciseRules = {
     thresholds: { min: 20, max: 95 },
     type: 'rep',
     depthAt: 'max', // the working end is arms RAISED, so "depth" is the highest angle
-    formCorrection: (angle) => {
+    // Secondary check: elbows should stay softly bent, not locked straight.
+    formCorrection: (angle, ctx) => {
       if (angle > 110) return { message: 'Too high — stop at shoulder height', color: 'yellow' };
-      if (angle >= 80) return { message: 'Shoulder height — perfect!', color: 'green' };
+      if (angle >= 80) {
+        const elbow = ctx && ctx.jointAngle ? ctx.jointAngle(`${ctx.side}_shoulder`, `${ctx.side}_elbow`, `${ctx.side}_wrist`) : 0;
+        if (elbow && elbow > 178) return { message: 'Soften your elbows slightly', color: 'yellow' };
+        return { message: 'Shoulder height — perfect!', color: 'green' };
+      }
       if (angle >= 30) return { message: 'Raise to shoulder height', color: '#00E5FF' };
       return { message: 'Arms at your sides — begin', color: '#00E5FF' };
     }

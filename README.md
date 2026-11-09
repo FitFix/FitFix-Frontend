@@ -12,7 +12,7 @@ FitFix is a full-stack fitness application that uses computer vision to provide 
 
 ## Key Features
 
-- 🎯 **Real-time Pose Detection**: Uses MediaPipe for accurate pose estimation at <30ms latency
+- 🎯 **Real-time Pose Detection**: MediaPipe pose tracking runs on-device in the browser (GPU), every camera frame, with 3D joint angles
 - 💪 **Exercise Form Analysis**: Provides instant feedback on exercise form with color-coded guidance
 - 🔢 **Rep Counting Automation**: Automatically counts repetitions with hysteresis-based state machine
 - ⏱️ **Isometric Hold Tracking**: Tracks duration for exercises like planks
@@ -35,13 +35,18 @@ MongoDB Atlas (User data, workouts, subscriptions)
 
 ### Data Flow
 
+**Web (on-device, default):**
 1. User performs exercise in front of camera
-2. Frontend captures video frames and sends to backend via `/api/ai/exercises/:id/analyze`
-3. Backend forwards image to Python gRPC service for pose detection
-4. Vision service returns keypoints to backend
-5. Backend calculates joint angles and provides form feedback
-6. Frontend displays real-time skeleton overlay, angle metrics, and form guidance
-7. Rep counting/isometric tracking happens in frontend using thresholds from backend
+2. Every new camera frame goes straight to MediaPipe Pose Landmarker running **in the browser** (WebAssembly + WebGL GPU, VIDEO/tracking mode). No video leaves the device.
+3. The frontend computes the joint angle (3D world landmarks), smooths it, counts reps and picks the form cue locally
+4. Only the finished session (reps, deepest angle, seconds per rep) is sent to `/api/workouts/sessions`
+
+**Cloud fallback / mobile app:**
+1. Frames are sent to `/api/ai/exercises/:id/analyze`
+2. Backend forwards the image to the Python gRPC service (MediaPipe) for keypoints
+3. Backend calculates the joint angle and form feedback; the client counts reps
+
+The web app uses the cloud path only when the browser can't run the on-device model.
 
 ## Exercise Logic Split
 
@@ -167,7 +172,22 @@ FitFix-Frontend/
 
 ## Key Implementation Details
 
-### Pose Detection Pipeline
+### On-device Tracking (web) — `frontend/src/vision/`
+
+| Step | What happens | Why |
+|---|---|---|
+| Model | MediaPipe Pose Landmarker **full** (33 landmarks + 3D world landmarks), GPU delegate; falls back to CPU + lite | Full is far more accurate than lite and costs only ~3 ms more on a GPU |
+| Model switch | If full averages >40 ms/frame, lite is tried and kept only if ≥20% faster | On many GPUs the cost is fixed overhead, so lite would just lose accuracy |
+| Frame loop | `requestVideoFrameCallback`: one inference per new camera frame, VIDEO mode tracking | No duplicate frames, steadier landmarks |
+| Angle | 3D angle from world landmarks; aspect-correct 2D fallback | Correct even when the user faces the camera (2D can't see bending toward the lens) |
+| Visibility | Joints below 0.5 visibility aren't measured | No phantom reps from hidden joints |
+| Side lock | Measured side switches only if the other is ≥0.15 better seen | No angle jumps between arms/legs |
+| Smoothing | One Euro filter on the angle | Removes jitter when still, minimal lag on fast reps |
+| UI | Tracking runs every frame; on-screen text refreshes ≤10×/s | Rendering never slows tracking |
+
+Measured on an Intel Iris Xe laptop (Chrome, GPU, full model): **~50–60 ms per frame end-to-end inference** with pose found in 70/70 frames, versus 150–400 ms *network round trip alone* (plus upload and server inference) per frame in the old cloud pipeline. Faster GPUs are proportionally quicker. The wasm runtime is copied from `node_modules` into `public/mediapipe/wasm` by `npm run dev`/`build`; models load from Google's MediaPipe model storage.
+
+### Cloud Pose Pipeline (fallback + mobile)
 
 1. **Image Capture**: Frontend captures video frames 320px wide, keeping the camera's aspect ratio
 2. **Base64 Encoding**: Frame converted to JPEG (quality 0.45) and base64 encoded

@@ -2,11 +2,21 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import exerciseRules from '../engine/ExerciseLogic';
 import { createWorkoutTracker } from '../engine/workoutTracker';
-import { X, Camera, Video, VideoOff } from 'lucide-react';
+import { createPoseTracker, createHandTracker } from '../vision/poseTracker';
+import { measureExercise } from '../vision/poseMath';
+import { OneEuroFilter } from '../vision/oneEuroFilter';
+import { prepareCanvas, drawPose, drawHands } from '../vision/drawLandmarks';
+import { X, Camera, Video, VideoOff, Cpu, Cloud } from 'lucide-react';
 import { API_BASE_URL } from '../config';
 
-// Frames are sent at this width; height follows the camera's real aspect ratio.
+// Cloud fallback frames are sent at this width; height follows the camera's aspect ratio.
 const CAPTURE_WIDTH = 320;
+// The tracking loop runs every camera frame; React state (text on screen) is
+// refreshed at most this often so rendering never slows tracking down.
+const UI_UPDATE_MS = 100;
+
+const isGoodForm = (fb) => !!fb && (fb.color === 'green' || fb.color === '#00E5FF');
+const sameStatus = (a, b) => !!a && !!b && a.message === b.message && a.color === b.color;
 
 export default function AIVisionContainer() {
   const { exerciseId } = useParams();
@@ -15,54 +25,72 @@ export default function AIVisionContainer() {
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
   const captureCanvasRef = useRef(null);
-  // Size (px) of the last frame sent — keypoints come back in this space.
+  // Size (px) of the last frame sent to the cloud — its keypoints come back in this space.
   const frameSizeRef = useRef({ width: CAPTURE_WIDTH, height: 240 });
 
   const [exercise] = useState(exerciseRules[exerciseId]);
+  const isHold = !!exercise && exercise.type === 'hold';
+  const isHands = !!exercise && exercise.type === 'detect';
+
   const trackerRef = useRef(null);
   if (trackerRef.current === null) trackerRef.current = createWorkoutTracker(exercise);
+  const visionRef = useRef(null); // on-device landmarker
+  const showSkeletonRef = useRef(true);
+
   const [reps, setReps] = useState(0);
   const [currentAngle, setCurrentAngle] = useState(0);
   const [formStatus, setFormStatus] = useState({ message: 'Click "Start Camera" to begin', color: 'gray' });
   const [showSkeleton, setShowSkeleton] = useState(true);
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [holdSeconds, setHoldSeconds] = useState(0);
-  const isHold = exercise && exercise.type === 'hold';
+  // 'loading' → model downloading; 'ready' → on-device tracking; 'cloud' → server fallback
+  const [engineStatus, setEngineStatus] = useState('loading');
+  const [engineInfo, setEngineInfo] = useState(null);
+  const [perf, setPerf] = useState({ fps: 0, inferenceMs: 0 });
 
-  const captureFrame = () => {
-    const video = videoRef.current;
-    if (!video || video.readyState < 2 || !video.videoWidth || !video.videoHeight) return null;
+  useEffect(() => {
+    if (!exercise) navigate('/exercises');
+  }, [exercise, navigate]);
 
-    // Keep the camera's real aspect ratio. Squeezing e.g. a 16:9 webcam into
-    // 320x240 distorts every joint angle and misaligns the skeleton overlay.
-    const width = CAPTURE_WIDTH;
-    const height = Math.round((CAPTURE_WIDTH * video.videoHeight) / video.videoWidth);
-    if (!captureCanvasRef.current) captureCanvasRef.current = document.createElement('canvas');
-    const canvas = captureCanvasRef.current;
-    canvas.width = width;
-    canvas.height = height;
-    canvas.getContext('2d').drawImage(video, 0, 0, width, height);
-    frameSizeRef.current = { width, height };
-    return canvas.toDataURL('image/jpeg', 0.45); // small payload
-  };
+  // Start loading the on-device model as soon as the page opens, so it's
+  // usually ready by the time the camera is. Falls back to cloud analysis if
+  // the browser can't run it (no WebAssembly/WebGL, blocked download, ...).
+  useEffect(() => {
+    if (!exercise) return undefined;
+    let cancelled = false;
+    const create = exercise.type === 'detect' ? createHandTracker : createPoseTracker;
+    create({ onInfoChange: (info) => { if (!cancelled) setEngineInfo(info); } })
+      .then((tracker) => {
+        if (cancelled) { tracker.close(); return; }
+        visionRef.current = tracker;
+        setEngineInfo(tracker.info);
+        setEngineStatus('ready');
+      })
+      .catch((err) => {
+        console.warn('[vision] on-device tracking unavailable, using cloud analysis:', err?.message || err);
+        if (!cancelled) setEngineStatus('cloud');
+      });
+    return () => {
+      cancelled = true;
+      if (visionRef.current) {
+        visionRef.current.close();
+        visionRef.current = null;
+      }
+    };
+  }, [exercise]);
 
-  // Match the overlay canvas to the frame size so keypoints (in frame pixels)
-  // can be drawn 1:1; CSS object-cover then scales it exactly like the video.
-  const prepareOverlay = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return null;
-    const { width, height } = frameSizeRef.current;
-    if (canvas.width !== width) canvas.width = width;
-    if (canvas.height !== height) canvas.height = height;
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    return { canvas, ctx };
-  }, []);
+  useEffect(() => {
+    showSkeletonRef.current = showSkeleton;
+    if (!showSkeleton && canvasRef.current) {
+      const c = canvasRef.current;
+      c.getContext('2d').clearRect(0, 0, c.width, c.height);
+    }
+  }, [showSkeleton]);
 
   const startCamera = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } } 
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } }
       });
       streamRef.current = stream;
       if (videoRef.current) {
@@ -71,7 +99,7 @@ export default function AIVisionContainer() {
       setIsCameraActive(true);
       setFormStatus({ message: 'Position yourself in frame', color: '#00E5FF' });
     } catch (err) {
-      console.error("Camera access denied or error", err);
+      console.error('Camera access denied or error', err);
       setFormStatus({ message: 'Camera access required', color: 'red' });
     }
   };
@@ -84,27 +112,151 @@ export default function AIVisionContainer() {
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
+    if (canvasRef.current) {
+      const c = canvasRef.current;
+      c.getContext('2d').clearRect(0, 0, c.width, c.height);
+    }
     setIsCameraActive(false);
     trackerRef.current.pause(); // so the paused gap isn't counted as hold time
     setFormStatus({ message: 'Camera stopped', color: 'gray' });
   };
 
-  const drawSkeleton = useCallback((keypoints) => {
-    const overlay = prepareOverlay();
-    if (!overlay) return;
-    const { ctx } = overlay;
+  /* ------------------------------------------------------------------
+   * On-device tracking loop: one inference per NEW camera frame.
+   * ------------------------------------------------------------------ */
+  useEffect(() => {
+    if (!exercise || !isCameraActive || engineStatus !== 'ready') return undefined;
+    const video = videoRef.current;
+    if (!video) return undefined;
 
+    const workout = trackerRef.current;
+    // Smooths the angle: steady when holding still, near-zero lag when moving fast.
+    const filter = new OneEuroFilter({ minCutoff: 1.5, beta: 0.02 });
+    const useFrameCallback = typeof video.requestVideoFrameCallback === 'function';
+    let stopped = false;
+    let handle = null;
+    let lastVideoTime = -1;
+    let side = null;
+    let lastUi = 0;
+    let lastReps = -1;
+    let lastStatus = null;
+    let fpsFrames = 0;
+    let fpsSince = performance.now();
+    let fps = 0;
+
+    const pushUi = (now, angle, feedback) => {
+      // Rep count updates immediately so the counter never feels late.
+      if (workout.reps !== lastReps) { lastReps = workout.reps; setReps(workout.reps); }
+      if (now - lastUi < UI_UPDATE_MS) return;
+      lastUi = now;
+      setCurrentAngle(angle);
+      if (!sameStatus(feedback, lastStatus)) { lastStatus = feedback; setFormStatus(feedback); }
+      setHoldSeconds(workout.holdSeconds);
+      const info = visionRef.current ? visionRef.current.info : null;
+      setPerf({ fps, inferenceMs: info ? Math.round(info.avgInferenceMs) : 0 });
+    };
+
+    const processFrame = (now) => {
+      const vision = visionRef.current;
+      if (!vision) return;
+      const out = vision.detect(video, now);
+
+      fpsFrames += 1;
+      if (now - fpsSince >= 1000) {
+        fps = Math.round((fpsFrames * 1000) / (now - fpsSince));
+        fpsFrames = 0;
+        fpsSince = now;
+      }
+      const ctx = showSkeletonRef.current ? prepareCanvas(canvasRef.current, video.videoWidth, video.videoHeight) : null;
+
+      if (exercise.type === 'detect') {
+        const hands = out ? out.hands : [];
+        if (ctx) drawHands(ctx, hands);
+        pushUi(now, hands.length, exercise.formCorrection(hands.length));
+        return;
+      }
+
+      if (!out || !out.landmarks) {
+        workout.pause();
+        filter.reset();
+        pushUi(now, 0, { message: 'Position yourself in frame', color: 'yellow' });
+        return;
+      }
+
+      const pose = {
+        image: out.landmarks,
+        world: out.worldLandmarks,
+        aspect: video.videoWidth / video.videoHeight
+      };
+      const m = measureExercise(exercise, pose, side);
+      if (m.side !== side) { side = m.side; filter.reset(); }
+
+      let angle = 0;
+      let feedback;
+      if (m.measured) {
+        angle = Math.round(filter.filter(m.angle, now));
+        feedback = exercise.formCorrection(angle, m.ctx);
+      } else {
+        filter.reset();
+        feedback = { message: 'Align joints with camera', color: 'yellow' };
+      }
+      workout.update({ angle, measured: m.measured, goodForm: isGoodForm(feedback), now });
+      if (ctx) drawPose(ctx, out.landmarks, exercise.targetJoints.map((j) => `${m.side}_${j}`));
+      pushUi(now, angle, feedback);
+    };
+
+    const onFrame = () => {
+      if (stopped) return;
+      // Only process frames the camera actually delivered (no duplicate work).
+      if (video.readyState >= 2 && video.currentTime !== lastVideoTime) {
+        lastVideoTime = video.currentTime;
+        processFrame(performance.now());
+      }
+      handle = useFrameCallback ? video.requestVideoFrameCallback(onFrame) : requestAnimationFrame(onFrame);
+    };
+    handle = useFrameCallback ? video.requestVideoFrameCallback(onFrame) : requestAnimationFrame(onFrame);
+
+    return () => {
+      stopped = true;
+      if (handle != null) {
+        if (useFrameCallback) video.cancelVideoFrameCallback(handle);
+        else cancelAnimationFrame(handle);
+      }
+      workout.pause();
+    };
+  }, [exercise, isCameraActive, engineStatus]);
+
+  /* ------------------------------------------------------------------
+   * Cloud fallback: send downscaled frames to the backend (old pipeline).
+   * Only used when the browser can't run the on-device model.
+   * ------------------------------------------------------------------ */
+  const captureFrame = () => {
+    const video = videoRef.current;
+    if (!video || video.readyState < 2 || !video.videoWidth || !video.videoHeight) return null;
+    // Keep the camera's real aspect ratio so angles aren't distorted.
+    const width = CAPTURE_WIDTH;
+    const height = Math.round((CAPTURE_WIDTH * video.videoHeight) / video.videoWidth);
+    if (!captureCanvasRef.current) captureCanvasRef.current = document.createElement('canvas');
+    const canvas = captureCanvasRef.current;
+    canvas.width = width;
+    canvas.height = height;
+    canvas.getContext('2d').drawImage(video, 0, 0, width, height);
+    frameSizeRef.current = { width, height };
+    return canvas.toDataURL('image/jpeg', 0.45);
+  };
+
+  const drawCloudPose = useCallback((keypoints) => {
+    const { width, height } = frameSizeRef.current;
+    const ctx = prepareCanvas(canvasRef.current, width, height);
+    if (!ctx) return;
     const connections = [
       ['left_shoulder', 'right_shoulder'], ['left_shoulder', 'left_elbow'], ['left_elbow', 'left_wrist'],
       ['right_shoulder', 'right_elbow'], ['right_elbow', 'right_wrist'], ['left_shoulder', 'left_hip'],
       ['right_shoulder', 'right_hip'], ['left_hip', 'right_hip'], ['left_hip', 'left_knee'],
       ['left_knee', 'left_ankle'], ['right_hip', 'right_knee'], ['right_knee', 'right_ankle']
     ];
-
     ctx.strokeStyle = '#00E5FF';
     ctx.lineWidth = 2;
-
-    // Keypoints are in frame pixels, and the overlay is sized to the frame.
     connections.forEach(([p1Name, p2Name]) => {
       const p1 = keypoints.find(k => k.name === p1Name);
       const p2 = keypoints.find(k => k.name === p2Name);
@@ -115,156 +267,71 @@ export default function AIVisionContainer() {
         ctx.stroke();
       }
     });
-
+    ctx.fillStyle = '#FFFFFF';
     keypoints.forEach(kp => {
       if (kp.score > 0.3) {
-        ctx.fillStyle = '#FFFFFF';
         ctx.beginPath();
         ctx.arc(kp.x, kp.y, 3, 0, 2 * Math.PI);
         ctx.fill();
       }
     });
-  }, [prepareOverlay]);
-
-  const drawHandSkeleton = useCallback((hands) => {
-    const overlay = prepareOverlay();
-    if (!overlay) return;
-    const { canvas, ctx } = overlay;
-
-    ctx.strokeStyle = '#00E5FF';
-    ctx.lineWidth = 1.5;
-
-    hands.forEach(hand => {
-      const lms = hand.landmarks;
-      if (!lms || lms.length < 21) return;
-
-      const fingers = [
-        [0, 1, 2, 3, 4],       // Thumb
-        [0, 5, 6, 7, 8],       // Index
-        [9, 10, 11, 12],       // Middle
-        [13, 14, 15, 16],      // Ring
-        [17, 18, 19, 20]       // Pinky
-      ];
-
-      // Connect finger joints
-      fingers.forEach(finger => {
-        for (let i = 0; i < finger.length - 1; i++) {
-          const p1 = lms[finger[i]];
-          const p2 = lms[finger[i+1]];
-          ctx.beginPath();
-          ctx.moveTo(p1.x * canvas.width, p1.y * canvas.height);
-          ctx.lineTo(p2.x * canvas.width, p2.y * canvas.height);
-          ctx.stroke();
-        }
-      });
-
-      // Connect bases
-      const bases = [0, 5, 9, 13, 17];
-      for (let i = 0; i < bases.length - 1; i++) {
-        const p1 = lms[bases[i]];
-        const p2 = lms[bases[i+1]];
-        ctx.beginPath();
-        ctx.moveTo(p1.x * canvas.width, p1.y * canvas.height);
-        ctx.lineTo(p2.x * canvas.width, p2.y * canvas.height);
-        ctx.stroke();
-      }
-      // Connect wrist to pinky base
-      const pWrist = lms[0];
-      const pPinkyBase = lms[17];
-      ctx.beginPath();
-      ctx.moveTo(pWrist.x * canvas.width, pWrist.y * canvas.height);
-      ctx.lineTo(pPinkyBase.x * canvas.width, pPinkyBase.y * canvas.height);
-      ctx.stroke();
-
-      // Draw landmark points
-      lms.forEach(lm => {
-        ctx.fillStyle = '#FFFFFF';
-        ctx.beginPath();
-        ctx.arc(lm.x * canvas.width, lm.y * canvas.height, 2, 0, 2 * Math.PI);
-        ctx.fill();
-      });
-    });
-  }, [prepareOverlay]);
-
-  const processKeypoints = useCallback((angle, measured, feedback) => {
-    setCurrentAngle(angle);
-    setFormStatus(feedback);
-    if (!exercise) return;
-
-    // Reps (hysteresis) and hold time (plank) are tracked outside React state
-    // so each frame is counted exactly once; React state just mirrors it.
-    const tracker = trackerRef.current;
-    tracker.update({
-      angle,
-      // Older backends don't send `measured`; the tracker also ignores angle 0.
-      measured: measured !== false,
-      goodForm: !!feedback && (feedback.color === 'green' || feedback.color === '#00E5FF'),
-      now: performance.now()
-    });
-    setReps(tracker.reps);
-    setHoldSeconds(tracker.holdSeconds);
-  }, [exercise]);
+  }, []);
 
   useEffect(() => {
-    if (!exercise) {
-      navigate('/exercises');
-      return;
-    }
-
+    if (!exercise || !isCameraActive || engineStatus !== 'cloud') return undefined;
     let active = true;
+    const workout = trackerRef.current;
 
-    const runInferenceLoop = async () => {
-      if (!active || !isCameraActive) return;
-
+    const runCloudLoop = async () => {
+      if (!active) return;
       const frame = captureFrame();
       if (frame) {
         try {
           const token = localStorage.getItem('token');
           const res = await fetch(`${API_BASE_URL}/api/ai/exercises/${exerciseId}/analyze`, {
             method: 'POST',
-            headers: { 
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify({ image: frame })
           });
-
-          if (res.ok && active && isCameraActive) {
+          if (res.ok && active) {
             const data = await res.json();
-            if (exerciseId === 'hand_detection') {
+            if (exercise.type === 'detect') {
               setCurrentAngle(data.count);
               setFormStatus(data.feedback);
-              if (showSkeleton) drawHandSkeleton(data.hands || []);
-            } else {
-              if (data.success && data.keypoints) {
-                processKeypoints(data.angle, data.measured, data.feedback);
-                if (showSkeleton) drawSkeleton(data.keypoints);
-              } else {
-                // Nobody detected: pause the hold timer so time out of frame isn't credited.
-                trackerRef.current.pause();
-                setFormStatus(data.feedback || { message: 'Position yourself in frame', color: 'yellow' });
+              if (showSkeletonRef.current) {
+                const { width, height } = frameSizeRef.current;
+                const ctx = prepareCanvas(canvasRef.current, width, height);
+                drawHands(ctx, data.hands || []);
               }
+            } else if (data.success && data.keypoints) {
+              setCurrentAngle(data.angle);
+              setFormStatus(data.feedback);
+              workout.update({
+                angle: data.angle,
+                measured: data.measured !== false,
+                goodForm: isGoodForm(data.feedback),
+                now: performance.now()
+              });
+              setReps(workout.reps);
+              setHoldSeconds(workout.holdSeconds);
+              if (showSkeletonRef.current) drawCloudPose(data.keypoints);
+            } else {
+              workout.pause(); // nobody in frame — don't credit hold time
+              setFormStatus(data.feedback || { message: 'Position yourself in frame', color: 'yellow' });
             }
           }
         } catch (err) {
-          console.error("Inference loop error:", err);
+          console.error('Cloud analysis error:', err);
         }
       }
-
-      // Schedule next frame immediately (no setTimeout delay) for max real-time FPS
-      if (active && isCameraActive) {
-        requestAnimationFrame(runInferenceLoop);
-      }
+      if (active) requestAnimationFrame(runCloudLoop);
     };
-
-    if (isCameraActive) {
-      runInferenceLoop();
-    }
+    requestAnimationFrame(runCloudLoop);
 
     return () => {
       active = false;
     };
-  }, [exercise, exerciseId, navigate, isCameraActive, showSkeleton, processKeypoints, drawSkeleton, drawHandSkeleton]);
+  }, [exercise, exerciseId, isCameraActive, engineStatus, drawCloudPose]);
 
   // Clean up camera stream tracks ONLY on unmount
   useEffect(() => {
@@ -295,33 +362,37 @@ export default function AIVisionContainer() {
         body: JSON.stringify({ exerciseId, reps: savedReps, maxDepthAngle, avgSpeed })
       });
 
-      if (res.ok) {
-        navigate('/dashboard');
-      } else {
-        console.error('Failed to save workout session');
-        navigate('/dashboard');
-      }
+      if (!res.ok) console.error('Failed to save workout session');
+      navigate('/dashboard');
     } catch (err) {
       console.error('Error saving session:', err);
       navigate('/dashboard');
     }
   };
 
-
-
   if (!exercise) return null;
+
+  const shownStatus = isCameraActive && engineStatus === 'loading'
+    ? { message: 'Loading AI model…', color: '#00E5FF' }
+    : formStatus;
+
+  const engineLabel = engineStatus === 'ready' && engineInfo
+    ? `On-device · ${engineInfo.delegate}${engineInfo.model === 'hand' ? '' : ` · ${engineInfo.model} model`}`
+    : engineStatus === 'cloud'
+      ? 'Cloud analysis'
+      : 'Loading AI model…';
 
   return (
     <div className="relative w-full h-screen bg-black overflow-hidden flex justify-center">
-      <video 
-        ref={videoRef} 
-        autoPlay 
-        playsInline 
-        muted 
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        muted
         style={{ transform: 'scaleX(-1)' }}
         className={`absolute inset-0 w-full h-full object-cover opacity-80 ${!isCameraActive ? 'hidden' : ''}`}
       />
-      
+
       {!isCameraActive && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#0d0d0d] p-4 text-center z-0">
           <div className="w-24 h-24 rounded-full bg-accent/5 flex items-center justify-center mb-6 border border-accent/20">
@@ -329,49 +400,59 @@ export default function AIVisionContainer() {
           </div>
           <h3 className="text-2xl font-bold mb-2">Camera Access Required</h3>
           <p className="text-gray-400 max-w-sm mb-8">
-            Click the button below to start the webcam stream and initiate the real-time YOLO pose estimator.
+            Start the camera for real-time pose tracking. Tracking runs on your device — your video never leaves it.
           </p>
-          <button 
+          <button
             onClick={startCamera}
             className="px-8 py-4 bg-accent text-black font-black rounded-2xl glow-accent-hover hover:scale-105 transition-all text-lg shadow-[0_0_20px_rgba(0,229,255,0.3)]"
           >
             Start Camera
           </button>
+          <p className="text-xs text-gray-500 mt-4">{engineLabel}</p>
         </div>
       )}
-      
+
       <canvas
         ref={canvasRef}
         width={CAPTURE_WIDTH}
         height={240}
         style={{ transform: 'scaleX(-1)' }}
-        className={`absolute inset-0 w-full h-full object-cover ${(!showSkeleton || !isCameraActive) && 'hidden'}`}
+        className={`absolute inset-0 w-full h-full object-cover pointer-events-none ${(!showSkeleton || !isCameraActive) && 'hidden'}`}
       />
 
       <div className="absolute top-0 left-0 right-0 p-4 flex justify-between items-center bg-linear-to-b from-black/80 to-transparent z-10">
-        <button 
+        <button
           onClick={() => {
             stopCamera();
             navigate('/exercises');
-          }} 
+          }}
           className="p-2 bg-gray-900/60 rounded-full text-white backdrop-blur-md"
         >
           <X size={24} />
         </button>
-        <h2 className="text-xl font-bold tracking-wider">{exercise.name}</h2>
-        
+        <div className="flex flex-col items-center">
+          <h2 className="text-xl font-bold tracking-wider">{exercise.name}</h2>
+          {isCameraActive && (
+            <p className="mt-1 flex items-center gap-1.5 text-[11px] text-gray-300 bg-black/40 px-2 py-0.5 rounded-full tabular-nums" title="Where pose tracking runs and how fast">
+              {engineStatus === 'cloud' ? <Cloud size={12} /> : <Cpu size={12} />}
+              {engineLabel}
+              {engineStatus === 'ready' && perf.fps > 0 && ` · ${perf.inferenceMs} ms · ${perf.fps} fps`}
+            </p>
+          )}
+        </div>
+
         <div className="flex gap-2">
           {isCameraActive && (
             <>
-              <button 
-                onClick={() => setShowSkeleton(!showSkeleton)} 
+              <button
+                onClick={() => setShowSkeleton(!showSkeleton)}
                 className={`p-2 rounded-full backdrop-blur-md transition-colors ${showSkeleton ? 'bg-accent/80 text-black' : 'bg-gray-900/60 text-white'}`}
                 title="Toggle Skeleton Overlay"
               >
                 <Camera size={24} />
               </button>
-              <button 
-                onClick={stopCamera} 
+              <button
+                onClick={stopCamera}
                 className="p-2 bg-red-600/80 rounded-full text-white backdrop-blur-md hover:bg-red-700 transition-colors"
                 title="Turn Camera Off"
               >
@@ -390,23 +471,23 @@ export default function AIVisionContainer() {
                 <p className="text-gray-400 text-xs font-semibold mb-0.5">HOLD</p>
                 <p className="text-3xl font-black text-white">{Math.floor(holdSeconds)}<span className="text-lg">s</span></p>
               </div>
-            ) : exerciseId !== 'hand_detection' ? (
+            ) : !isHands ? (
               <div className="flex-1 text-center p-2 bg-gray-900/50 rounded-xl border border-gray-800">
                 <p className="text-gray-400 text-xs font-semibold mb-0.5">REPS</p>
                 <p className="text-3xl font-black text-white">{reps}</p>
               </div>
             ) : null}
             <div className="flex-1 text-center p-2 bg-gray-900/50 rounded-xl border border-gray-800">
-              <p className="text-gray-400 text-xs font-semibold mb-0.5">{exerciseId === 'hand_detection' ? 'HANDS' : 'ANGLE'}</p>
-              <p className="text-3xl font-black text-accent">{currentAngle}{exerciseId === 'hand_detection' ? '' : '°'}</p>
+              <p className="text-gray-400 text-xs font-semibold mb-0.5">{isHands ? 'HANDS' : 'ANGLE'}</p>
+              <p className="text-3xl font-black text-accent">{currentAngle}{isHands ? '' : '°'}</p>
             </div>
           </div>
-          
-          <div className="p-2.5 rounded-xl text-center font-bold text-sm border shadow-inner" style={{ backgroundColor: `${formStatus.color}15`, color: formStatus.color, borderColor: `${formStatus.color}40` }}>
-            {formStatus.message}
+
+          <div className="p-2.5 rounded-xl text-center font-bold text-sm border shadow-inner" style={{ backgroundColor: `${shownStatus.color}15`, color: shownStatus.color, borderColor: `${shownStatus.color}40` }}>
+            {shownStatus.message}
           </div>
 
-          <button 
+          <button
             onClick={handleFinishWorkout}
             className="w-full py-2.5 bg-accent hover:bg-accent/90 text-black font-extrabold rounded-xl transition-all text-sm text-center shadow-lg shadow-accent/10 hover:scale-[1.02]"
           >
